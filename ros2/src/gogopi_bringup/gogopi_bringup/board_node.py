@@ -31,7 +31,7 @@ class BoardNode(LifecycleNode):
         self.declare_parameter("motor_right_id", 2)
         self.declare_parameter("button_poll_hz", 50.0)
         self.declare_parameter("battery_hz", 2.0)
-        self.declare_parameter("state_hz", 10.0)
+        self.declare_parameter("servo_angle_offset_deg", [0.0, 0.0])  # offsets for servo 1 and 2
 
         self._timers = []
         self._Board = None
@@ -187,7 +187,10 @@ class BoardNode(LifecycleNode):
         if cmd.use_pulse:
             self._Board.setPWMServoPulse(cmd.servo_id, cmd.pulse_us, cmd.move_time_ms)
         else:
-            self._Board.setPWMServoAngle(cmd.servo_id, cmd.angle_deg)
+            offsets = self.get_parameter("servo_angle_offset_deg").value
+            offset = offsets[cmd.servo_id - 1] if cmd.servo_id <= len(offsets) else 0.0
+            adjusted_angle = cmd.angle_deg + offset
+            self._Board.setPWMServoAngle(cmd.servo_id, adjusted_angle)
 
     def _svc_set_servo(self, request, response):
         try:
@@ -206,8 +209,14 @@ class BoardNode(LifecycleNode):
     def _svc_e_stop(self, request, response):
         for i in range(1, 5):
             self._Board.setMotor(i, 0)
+        # Disable servos by setting to neutral position (power saving)
+        for i in range(1, 3):  # Assuming servos 1 and 2 for pan-tilt
+            try:
+                self._Board.setPWMServoPulse(i, 0, 0)  # Attempt to disable PWM
+            except:
+                pass  # If not supported, ignore
         response.success = True
-        response.message = "All motors stopped"
+        response.message = "All motors stopped, servos disabled"
         return response
 
 

@@ -56,7 +56,30 @@ ros2 param set /camera_node image_rotation 180
 ros2 param set /thermal_node image_rotation 90
 ```
 
-For persistent settings, modify the launch file parameters (default is 0 for no rotation). After changing parameters, restart the nodes or use `ros2 lifecycle` commands to reconfigure.
+### Calibrating Servo Angles
+
+To calibrate servo angles against real-world positions, add angle offsets using the `servo_angle_offset_deg` parameter (array for servo 1 and 2). This adjusts the commanded angle before sending to the hardware.
+
+**Set offsets for servo calibration:**
+```bash
+ros2 param set /board_node servo_angle_offset_deg "[5.0, -2.0]"  # +5° for servo 1, -2° for servo 2
+```
+
+Measure the actual servo positions and adjust offsets accordingly. For precise calibration, use ROS tools like `joint_state_publisher_gui` or implement a calibration routine.
+
+### Power Saving and E-Stop for Servos
+
+For power saving or emergency stop, servos can be disabled by stopping PWM output. The e-stop service now disables servos in addition to stopping motors.
+
+**Trigger e-stop (stops motors and disables servos):**
+```bash
+ros2 service call /gogopi/e_stop std_srvs/Trigger
+```
+
+For manual servo disable, set pulse to 0 (may not be supported by all servo boards):
+```bash
+ros2 service call /gogopi/set_servo gogopi_msgs/srv/SetServo "{command: {servo_id: 1, use_pulse: true, pulse_us: 0}}"
+```
 
 **System packages**
 
