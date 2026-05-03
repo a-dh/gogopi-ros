@@ -4,18 +4,18 @@
   <!-- Base link (body) -->
   <link name="base_link">
     <visual>
-      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <origin xyz="0 0 0.0155" rpy="0 0 0"/>
       <geometry>
-        <box size="0.2 0.15 0.1"/>
+        <box size="0.133 0.095 0.031"/>
       </geometry>
       <material name="gray">
         <color rgba="0.5 0.5 0.5 1.0"/>
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <origin xyz="0 0 0.0155" rpy="0 0 0"/>
       <geometry>
-        <box size="0.2 0.15 0.1"/>
+        <box size="0.133 0.095 0.031"/>
       </geometry>
     </collision>
     <inertial>
@@ -28,7 +28,7 @@
   <link name="wheel_front_left">
     <visual>
       <geometry>
-        <cylinder radius="0.03" length="0.02"/>
+        <cylinder radius="0.0335" length="0.021"/>
       </geometry>
       <material name="black">
         <color rgba="0.1 0.1 0.1 1.0"/>
@@ -36,7 +36,7 @@
     </visual>
     <collision>
       <geometry>
-        <cylinder radius="0.03" length="0.02"/>
+        <cylinder radius="0.0335" length="0.021"/>
       </geometry>
     </collision>
     <inertial>
@@ -48,7 +48,7 @@
   <link name="wheel_front_right">
     <visual>
       <geometry>
-        <cylinder radius="0.03" length="0.02"/>
+        <cylinder radius="0.0335" length="0.021"/>
       </geometry>
       <material name="black">
         <color rgba="0.1 0.1 0.1 1.0"/>
@@ -56,7 +56,7 @@
     </visual>
     <collision>
       <geometry>
-        <cylinder radius="0.03" length="0.02"/>
+        <cylinder radius="0.0335" length="0.021"/>
       </geometry>
     </collision>
     <inertial>
@@ -65,10 +65,11 @@
     </inertial>
   </link>
 
-  <link name="wheel_rear_left">
+  <!-- Castor -->
+  <link name="castor_link">
     <visual>
       <geometry>
-        <cylinder radius="0.03" length="0.02"/>
+        <sphere radius="0.01"/>
       </geometry>
       <material name="black">
         <color rgba="0.1 0.1 0.1 1.0"/>
@@ -76,50 +77,30 @@
     </visual>
     <collision>
       <geometry>
-        <cylinder radius="0.03" length="0.02"/>
+        <sphere radius="0.01"/>
       </geometry>
     </collision>
     <inertial>
-      <mass value="0.1"/>
-      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
-    </inertial>
-  </link>
-
-  <link name="wheel_rear_right">
-    <visual>
-      <geometry>
-        <cylinder radius="0.03" length="0.02"/>
-      </geometry>
-      <material name="black">
-        <color rgba="0.1 0.1 0.1 1.0"/>
-      </material>
-    </visual>
-    <collision>
-      <geometry>
-        <cylinder radius="0.03" length="0.02"/>
-      </geometry>
-    </collision>
-    <inertial>
-      <mass value="0.1"/>
-      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+      <mass value="0.05"/>
+      <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00001"/>
     </inertial>
   </link>
 
   <!-- Sensor tower -->
   <link name="sensor_tower">
     <visual>
-      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+      <origin xyz="-0.0475 0 0.06" rpy="0 0 0"/>
       <geometry>
-        <box size="0.02 0.02 0.2"/>
+        <box size="0.002 0.055 0.089"/>
       </geometry>
       <material name="blue">
         <color rgba="0.2 0.2 0.8 1.0"/>
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+      <origin xyz="-0.0475 0 0.06" rpy="0 0 0"/>
       <geometry>
-        <box size="0.02 0.02 0.2"/>
+        <box size="0.002 0.055 0.089"/>
       </geometry>
     </collision>
     <inertial>
@@ -216,43 +197,36 @@
   <joint name="wheel_front_left_joint" type="continuous">
     <parent link="base_link"/>
     <child link="wheel_front_left"/>
-    <origin xyz="0.075 0.075 0" rpy="0 0 0"/>
+    <origin xyz="0.0295 0.083 0" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
   </joint>
 
   <joint name="wheel_front_right_joint" type="continuous">
     <parent link="base_link"/>
     <child link="wheel_front_right"/>
-    <origin xyz="0.075 -0.075 0" rpy="0 0 0"/>
+    <origin xyz="0.0295 -0.083 0" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
   </joint>
 
-  <joint name="wheel_rear_left_joint" type="continuous">
+  <!-- Castor -->
+  <joint name="castor_joint" type="fixed">
     <parent link="base_link"/>
-    <child link="wheel_rear_left"/>
-    <origin xyz="-0.075 0.075 0" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
-  </joint>
-
-  <joint name="wheel_rear_right_joint" type="continuous">
-    <parent link="base_link"/>
-    <child link="wheel_rear_right"/>
-    <origin xyz="-0.075 -0.075 0" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
+    <child link="castor_link"/>
+    <origin xyz="-0.0545 0 0.01" rpy="0 0 0"/>
   </joint>
 
   <!-- Sensor tower -->
   <joint name="sensor_tower_joint" type="fixed">
     <parent link="base_link"/>
     <child link="sensor_tower"/>
-    <origin xyz="0 0 0.15" rpy="0 0 0"/>
+    <origin xyz="-0.0475 0 0.06" rpy="0 0 0"/>
   </joint>
 
   <!-- Pan joint (servo 2) -->
   <joint name="pan_joint" type="revolute">
     <parent link="sensor_tower"/>
     <child link="pan_link"/>
-    <origin xyz="0 0 0.2" rpy="0 0 0"/>
+    <origin xyz="0 0 0.089" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
     <limit lower="-3.14159" upper="3.14159" effort="1.0" velocity="1.0"/>
   </joint>
