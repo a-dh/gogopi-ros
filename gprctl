@@ -1,8 +1,10 @@
 #!/bin/bash
-# Start all gopiros2 ROS2 pieces in a tmux session.
-# Usage: ./start.sh [session-name]
+# gprctl — GoPiRos2 session controller
+# Usage: ./gprctl [start [session]]   start tmux session (default)
+#        ./gprctl stop  [session]     kill tmux session
+#        ./gprctl hwhealth            run hardware health check in terminal
 #
-# Windows:
+# Tmux windows:
 #   0 daemons  — hardware health check (read-only)
 #   1 urdf     — robot_state_publisher (publishes /robot_description + TF)
 #   2 board    — board_node (lifecycle: configure then activate)
@@ -11,15 +13,21 @@
 #   5 camera   — camera_node with /dev/video0 check
 #   6 shell    — interactive shell, pre-sourced
 
+REPO="/home/albertd/gopiros2"
+
 if [ "${1}" = "stop" ]; then
     SESSION="${2:-gopiros2}"
     tmux kill-session -t "$SESSION" 2>/dev/null && echo "Stopped $SESSION" || echo "No session $SESSION running"
     exit 0
 fi
 
+if [ "${1}" = "hwhealth" ]; then
+    python3 "$REPO/services/hw_check.py"
+    exit $?
+fi
+
 SESSION="${1:-gopiros2}"
 WS="/home/albertd/gopiros2/ros2"
-REPO="/home/albertd/gopiros2"
 SETUP="source /opt/ros/jazzy/setup.bash && source $WS/install/setup.bash && export PYTHONPATH=$REPO:\$PYTHONPATH"
 
 tmux kill-session -t "$SESSION" 2>/dev/null
@@ -95,8 +103,9 @@ cat <<'EOF'
 │                                                          │
 │  Ctrl-b d  detach   (session keeps running in bg)        │
 │  Ctrl-b [  scroll mode  (q to exit)                      │
-│  ./start.sh         restart everything                   │
-│  ./start.sh stop    kill the session                     │
+│  ./gprctl           restart everything                   │
+│  ./gprctl stop      kill the session                     │
+│  ./gprctl hwhealth  run hardware health check            │
 └──────────────────────────────────────────────────────────┘
 EOF
 
