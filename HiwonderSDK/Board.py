@@ -140,7 +140,7 @@ def setPWMServoAngle(servo_id, angle):
         raise AttributeError("Invalid Servo ID: %d" % servo_id)
     index = servo_id - 1
     angle = max(0, min(180, round(angle)))
-    pulse = max(500, min(2500, int(((200 * angle) / 9) + 500)))
+    pulse = max(500, min(2500, int(angle * 2000 / 180 + 500)))
     buf = (
         [__SERVO_ADDR_CMD, 1]
         + list((0).to_bytes(2, "little"))

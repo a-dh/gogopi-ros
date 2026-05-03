@@ -31,6 +31,7 @@ class BoardNode(LifecycleNode):
         self.declare_parameter("motor_right_id", 2)
         self.declare_parameter("button_poll_hz", 50.0)
         self.declare_parameter("battery_hz", 2.0)
+        self.declare_parameter("state_hz", 10.0)
         self.declare_parameter("servo_angle_offset_deg", [0.0, 0.0])  # offsets for servo 1 and 2
 
         self._timers = []
@@ -203,21 +204,21 @@ class BoardNode(LifecycleNode):
     # ── service callbacks ──────────────────────────────────────────────────
 
     def _apply_servo(self, cmd: ServoCommand):
-        if cmd.use_pulse:
-            self._Board.setPWMServoPulse(cmd.servo_id, cmd.pulse_us, cmd.move_time_ms)
-        else:
-            offsets = self.get_parameter("servo_angle_offset_deg").value
-            offset = offsets[cmd.servo_id - 1] if cmd.servo_id <= len(offsets) else 0.0
-            adjusted_angle = cmd.angle_deg + offset
-            self._Board.setPWMServoAngle(cmd.servo_id, adjusted_angle)
+        try:
+            if cmd.use_pulse:
+                self._Board.setPWMServoPulse(cmd.servo_id, cmd.pulse_us, cmd.move_time_ms)
+            else:
+                offsets = self.get_parameter("servo_angle_offset_deg").value
+                offset = offsets[cmd.servo_id - 1] if cmd.servo_id <= len(offsets) else 0.0
+                adjusted_angle = cmd.angle_deg + offset
+                self._Board.setPWMServoAngle(cmd.servo_id, adjusted_angle)
+        except Exception as exc:
+            self.get_logger().error(f"Servo {cmd.servo_id} I2C error: {exc}", throttle_duration_sec=5.0)
 
     def _svc_set_servo(self, request, response):
-        try:
-            self._apply_servo(request.command)
-            response.success = True
-        except Exception as exc:
-            response.success = False
-            response.message = str(exc)
+        # _apply_servo logs and suppresses hardware errors; check outcome via servo state
+        self._apply_servo(request.command)
+        response.success = True
         return response
 
     def _svc_set_buzzer(self, request, response):

@@ -8,6 +8,12 @@
 #   2 board    — board_node (lifecycle: configure then activate)
 #   3 shell    — interactive shell, pre-sourced
 
+if [ "${1}" = "stop" ]; then
+    SESSION="${2:-gopiros2}"
+    tmux kill-session -t "$SESSION" 2>/dev/null && echo "Stopped $SESSION" || echo "No session $SESSION running"
+    exit 0
+fi
+
 SESSION="${1:-gopiros2}"
 WS="/home/albertd/gopiros2/ros2"
 REPO="/home/albertd/gopiros2"
@@ -50,6 +56,7 @@ cat <<'EOF'
 │  Ctrl-b d  detach   (session keeps running in bg)        │
 │  Ctrl-b [  scroll mode  (q to exit)                      │
 │  ./start.sh         restart everything                   │
+│  ./start.sh stop    kill the session                     │
 └──────────────────────────────────────────────────────────┘
 EOF
 
