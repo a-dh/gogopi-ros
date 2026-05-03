@@ -167,3 +167,18 @@ See [CLAUDE.md](CLAUDE.md) for:
 The message definitions themselves are the canonical reference:
 - [`ros2/src/gogopi_msgs/msg/`](ros2/src/gogopi_msgs/msg/)
 - [`ros2/src/gogopi_msgs/srv/`](ros2/src/gogopi_msgs/srv/)
+
+## Robot Description (URDF)
+
+The robot geometry is described in [`ros2/src/gogopi_bringup/urdf/gogopi.urdf`](ros2/src/gogopi_bringup/urdf/gogopi.urdf), including:
+- Base body with 4 wheels (differential drive)
+- Sensor tower mounted on the body
+- Pan-tilt mechanism at the top (controlled by servos 1 and 2)
+- USB and thermal cameras mounted on the tilt link
+
+To visualize or use the robot model:
+```bash
+ros2 run robot_state_publisher robot_state_publisher --ros-args -p robot_description:="$(cat /opt/ros/jazzy/share/gogopi_bringup/urdf/gogopi.urdf)"
+```
+
+Joint names in the URDF match the servo state publishing: `pan_joint` (servo 2), `tilt_joint` (servo 1).
