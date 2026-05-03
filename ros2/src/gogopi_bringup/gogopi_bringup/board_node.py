@@ -63,6 +63,7 @@ class BoardNode(LifecycleNode):
         self.create_subscription(Bool, "/gogopi/buzzer", self._cb_buzzer, 10)
         self.create_subscription(Bool, "/gogopi/led1", self._cb_led1, 10)
         self.create_subscription(Bool, "/gogopi/led2", self._cb_led2, 10)
+        self.create_subscription(JointState, "/joint_states", self._cb_joint_states, 10)
 
         # services
         self.create_service(SetServo, "/gogopi/set_servo", self._svc_set_servo)
@@ -127,13 +128,13 @@ class BoardNode(LifecycleNode):
         m_msg.data = [float(self._Board.getMotor(i)) for i in range(1, 5)]
         self._pub_motor_state.publish(m_msg)
 
-        # servo state (servos 1-2 as pan-tilt)
+        # servo state using URDF joint names so robot_state_publisher can consume it
         s_msg = JointState()
         s_msg.header.stamp = self.get_clock().now().to_msg()
-        s_msg.name = ["servo_1", "servo_2"]
+        s_msg.name = ["tilt_joint", "pan_joint"]
         s_msg.position = [
-            math.radians(self._Board.getPWMServoAngle(1)),
-            math.radians(self._Board.getPWMServoAngle(2)),
+            math.radians(self._Board.getPWMServoAngle(1) - 90.0),
+            math.radians(self._Board.getPWMServoAngle(2) - 90.0),
         ]
         self._pub_servo_state.publish(s_msg)
 
@@ -182,6 +183,19 @@ class BoardNode(LifecycleNode):
     def _cb_led2(self, msg: Bool):
         from HiwonderSDK.Board import LEDState
         self._Board.setLed2(LEDState.ON if msg.data else LEDState.OFF)
+
+    def _cb_joint_states(self, msg: JointState):
+        if self._Board is None:
+            return
+        joint_to_servo = {'tilt_joint': 1, 'pan_joint': 2}
+        for name, pos in zip(msg.name, msg.position):
+            if name in joint_to_servo:
+                cmd = ServoCommand()
+                cmd.servo_id = joint_to_servo[name]
+                cmd.use_pulse = False
+                cmd.angle_deg = 90.0 + math.degrees(pos)
+                cmd.move_time_ms = 0
+                self._apply_servo(cmd)
 
     # ── service callbacks ──────────────────────────────────────────────────
 
