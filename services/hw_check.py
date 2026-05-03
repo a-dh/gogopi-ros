@@ -40,6 +40,17 @@ def _svc_state(name: str) -> str:
     return r.stdout.strip()  # active | inactive | failed | not-found | …
 
 
+def _svc_result(name: str) -> str:
+    r = subprocess.run(
+        ["systemctl", "show", name, "--property=Result"],
+        capture_output=True, text=True,
+    )
+    for line in r.stdout.splitlines():
+        if line.startswith("Result="):
+            return line.split("=", 1)[1].strip()
+    return ""
+
+
 def _i2c_probe(bus: int, addr: int) -> tuple[bool, str]:
     try:
         from smbus2 import SMBus
@@ -64,6 +75,16 @@ def check_services() -> dict[str, str]:
     for svc, desc in items:
         st = _svc_state(svc)
         out[svc] = st
+
+        # hw_wifi exits cleanly after connecting; treat that as healthy
+        if svc == "hw_wifi" and st == "inactive":
+            result = _svc_result(svc)
+            if result == "success":
+                _row(OK, svc, f"exited-ok (connected)  — {desc}")
+            else:
+                _row(SKIP, svc, f"inactive (not yet started)  — {desc}")
+            continue
+
         if st == "active":
             icon = OK
         elif st == "not-found":
