@@ -14,6 +14,33 @@ ROS2 Jazzy driver stack for the GoGoPi differential-drive robot (Hiwonder expans
 | KEY 1 | 13 | 33 |
 | KEY 2 | 23 | 16 |
 
+## I2C bus layout
+
+All I2C devices share **bus 1** (BCM 2/3):
+
+| Device | Address | Driver |
+|---|---|---|
+| Expansion board (motors, servos, battery) | 0x7A | pigpio (via pigpiod) |
+| Sonar module | 0x77 | smbus2 |
+| MLX90640 thermal camera | 0x33 | adafruit-blinka (busio) |
+
+There is no explicit application-level locking between the three drivers. All three reach the kernel through `/dev/i2c-1`, and the Linux I2C core holds a bus-adapter mutex for each transfer, so transactions cannot interleave and bus corruption is not a risk.
+
+The practical consequence is **latency**: an MLX90640 frame read at 400 kHz takes ~4 ms, during which servo or sonar commands queue behind it. At typical publish rates (10 Hz sonar, 4 Hz thermal) the delay is negligible.
+
+### Adding a ST VL53L5CX ToF sensor
+
+Feasible. Address **0x29** has no conflict with existing devices. 400 kHz is supported and matches the current bus speed.
+
+Two things to plan for:
+
+- **Firmware load on every power-on.** The VL53L5CX has no flash; the host must push ~86 KB over I2C after each power cycle (~1.4 s at 400 kHz, bus blocked). Load firmware in `on_configure` before activating other nodes.
+- **Large per-frame transfers.** An 8×8 result set is ~2000 bytes (~45 ms at 400 kHz, ~3× the MLX90640). At 5 Hz that consumes ~225 ms/s of bus time; servo and motor commands queue behind it, which is fine at human-scale reaction times.
+
+**Pull-ups:** breakout boards (SparkFun Qwiic, Pimoroni) ship with 2.2 kΩ pull-ups. Cut the pull-up jumper on the breakout to avoid parallel pull-ups conflicting with those on the Hiwonder expansion board.
+
+**Recommended driver:** [pimoroni/vl53l5cx-python](https://github.com/pimoroni/vl53l5cx-python) — ctypes wrapper around ST's ULD, uses `/dev/i2c-1` directly, coexists with smbus2 and adafruit-blinka.
+
 ## Camera Pan/Tilt Mechanism
 
 The visual (USB) and thermal (MLX90640) cameras are mounted on a shared pan-tilt mechanism controlled by the robot's servos:
