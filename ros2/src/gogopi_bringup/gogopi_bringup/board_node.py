@@ -137,7 +137,7 @@ class BoardNode(LifecycleNode):
         s_msg.header.stamp = self.get_clock().now().to_msg()
         s_msg.name = ["tilt_joint", "pan_joint"]
         s_msg.position = [
-            math.radians(self._Board.getPWMServoAngle(1) - 90.0),
+            math.radians(90.0 - self._Board.getPWMServoAngle(1)),
             math.radians(self._Board.getPWMServoAngle(2) - 90.0),
         ]
         self._pub_servo_state.publish(s_msg)
@@ -197,7 +197,7 @@ class BoardNode(LifecycleNode):
                 cmd = ServoCommand()
                 cmd.servo_id = joint_to_servo[name]
                 cmd.use_pulse = False
-                cmd.angle_deg = 90.0 + math.degrees(pos)
+                cmd.angle_deg = 90.0 - math.degrees(pos)
                 cmd.move_time_ms = 0
                 self._apply_servo(cmd)
 
