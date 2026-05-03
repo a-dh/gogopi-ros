@@ -3,7 +3,7 @@
 # Usage: ./start.sh [session-name]
 #
 # Windows:
-#   0 daemons  — ensure pigpiod + rpi-led-proxy are running
+#   0 daemons  — hardware health check (read-only)
 #   1 urdf     — robot_state_publisher (publishes /robot_description + TF)
 #   2 board    — board_node (lifecycle: configure then activate)
 #   3 sonar    — sonar_node with I2C probe check (0x77)
@@ -24,10 +24,10 @@ SETUP="source /opt/ros/jazzy/setup.bash && source $WS/install/setup.bash && expo
 
 tmux kill-session -t "$SESSION" 2>/dev/null
 
-# 0: daemons
+# 0: hardware health check (read-only — does not start services)
 tmux new-session -d -s "$SESSION" -n "daemons" -x 220 -y 50
 tmux send-keys -t "$SESSION:daemons" \
-  "sudo systemctl start pigpiod rpi-led-proxy && systemctl status pigpiod rpi-led-proxy --no-pager" Enter
+  "python3 $REPO/services/hw_check.py" Enter
 
 # 1: robot_state_publisher
 tmux new-window -t "$SESSION" -n "urdf"
@@ -79,7 +79,7 @@ tmux select-window -t "$SESSION:board"
 
 cat <<'EOF'
 ┌─ gopiros2 tmux session ──────────────────────────────────┐
-│  Ctrl-b 0  daemons  — pigpiod + rpi-led-proxy status     │
+│  Ctrl-b 0  daemons  — hardware health check               │
 │  Ctrl-b 1  urdf     — robot_state_publisher              │
 │  Ctrl-b 2  board    — board_node (open here on attach)   │
 │  Ctrl-b 3  sonar    — sonar_node (0x77 check+run)        │
