@@ -102,7 +102,7 @@
   <!-- Sensor tower -->
   <link name="sensor_tower">
     <visual>
-      <origin xyz="-0.0475 0 0.06" rpy="0 0 0"/>
+      <origin xyz="0 0 0.0445" rpy="0 0 0"/>
       <geometry>
         <box size="0.002 0.055 0.089"/>
       </geometry>
@@ -110,8 +110,17 @@
         <color rgba="0.2 0.2 0.8 1.0"/>
       </material>
     </visual>
+    <visual>
+      <origin xyz="0.013 0 0.0905" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.026 0.030 0.003"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0.2 0.2 0.8 1.0"/>
+      </material>
+    </visual>
     <collision>
-      <origin xyz="-0.0475 0 0.06" rpy="0 0 0"/>
+      <origin xyz="0 0 0.0445" rpy="0 0 0"/>
       <geometry>
         <box size="0.002 0.055 0.089"/>
       </geometry>
@@ -126,7 +135,7 @@
   <link name="pan_link">
     <visual>
       <geometry>
-        <box size="0.05 0.02 0.02"/>
+        <cylinder radius="0.021" length="0.005"/>
       </geometry>
       <material name="green">
         <color rgba="0.2 0.8 0.2 1.0"/>
@@ -134,7 +143,7 @@
     </visual>
     <collision>
       <geometry>
-        <box size="0.05 0.02 0.02"/>
+        <cylinder radius="0.021" length="0.005"/>
       </geometry>
     </collision>
     <inertial>
@@ -147,7 +156,7 @@
   <link name="tilt_link">
     <visual>
       <geometry>
-        <box size="0.02 0.05 0.02"/>
+        <box size="0.036 0.040 0.013"/>
       </geometry>
       <material name="yellow">
         <color rgba="0.8 0.8 0.2 1.0"/>
@@ -155,7 +164,7 @@
     </visual>
     <collision>
       <geometry>
-        <box size="0.02 0.05 0.02"/>
+        <box size="0.036 0.040 0.013"/>
       </geometry>
     </collision>
     <inertial>
@@ -166,17 +175,29 @@
 
   <!-- Camera links -->
   <link name="camera_link">
+    <!-- Circuit board on left side of tilt unit: 2mm thick(x) x 25mm wide(y) x 30mm tall(z) -->
     <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.03 0.02 0.02"/>
+        <box size="0.002 0.025 0.030"/>
       </geometry>
       <material name="red">
         <color rgba="0.8 0.2 0.2 1.0"/>
       </material>
     </visual>
+    <!-- 18mm diameter lens cylinder pointing forward, centered on board -->
+    <visual>
+      <origin xyz="0.0085 0 0" rpy="0 1.5708 0"/>
+      <geometry>
+        <cylinder radius="0.009" length="0.015"/>
+      </geometry>
+      <material name="dark_gray">
+        <color rgba="0.2 0.2 0.2 1.0"/>
+      </material>
+    </visual>
     <collision>
       <geometry>
-        <box size="0.03 0.02 0.02"/>
+        <box size="0.017 0.025 0.030"/>
       </geometry>
     </collision>
     <inertial>
@@ -186,17 +207,29 @@
   </link>
 
   <link name="thermal_camera_link">
+    <!-- Circuit board on front face of tilt unit: 2mm thick(x) x 15mm wide(y) x 26mm tall(z) -->
     <visual>
+      <origin xyz="-0.001 0 -0.013" rpy="0 0 0"/>
       <geometry>
-        <box size="0.03 0.02 0.02"/>
+        <box size="0.002 0.015 0.026"/>
       </geometry>
       <material name="purple">
         <color rgba="0.5 0.2 0.5 1.0"/>
       </material>
     </visual>
+    <!-- 10mm diameter lens cylinder pointing forward, centered at top of board -->
+    <visual>
+      <origin xyz="0.005 0 0" rpy="0 1.5708 0"/>
+      <geometry>
+        <cylinder radius="0.005" length="0.010"/>
+      </geometry>
+      <material name="dark_gray">
+        <color rgba="0.2 0.2 0.2 1.0"/>
+      </material>
+    </visual>
     <collision>
       <geometry>
-        <box size="0.03 0.02 0.02"/>
+        <box size="0.012 0.015 0.026"/>
       </geometry>
     </collision>
     <inertial>
@@ -232,14 +265,14 @@
   <joint name="sensor_tower_joint" type="fixed">
     <parent link="base_link"/>
     <child link="sensor_tower"/>
-    <origin xyz="-0.0475 0 0.06" rpy="0 0 0"/>
+    <origin xyz="-0.0475 0 0.031" rpy="0 0 0"/>
   </joint>
 
   <!-- Pan joint (servo 2) -->
   <joint name="pan_joint" type="revolute">
     <parent link="sensor_tower"/>
     <child link="pan_link"/>
-    <origin xyz="0 0 0.089" rpy="0 0 0"/>
+    <origin xyz="0.026 0 0.092" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
     <limit lower="-3.14159" upper="3.14159" effort="1.0" velocity="1.0"/>
   </joint>
@@ -248,22 +281,24 @@
   <joint name="tilt_joint" type="revolute">
     <parent link="pan_link"/>
     <child link="tilt_link"/>
-    <origin xyz="0.025 0 0" rpy="0 0 0"/>
+    <origin xyz="-0.012 0 0.0235" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
     <limit lower="-1.5708" upper="1.5708" effort="1.0" velocity="1.0"/>
   </joint>
 
   <!-- Cameras -->
+  <!-- camera_link origin = board center on front face of tilt unit, left half -->
   <joint name="camera_joint" type="fixed">
     <parent link="tilt_link"/>
     <child link="camera_link"/>
-    <origin xyz="0.025 0 0" rpy="0 0 0"/>
+    <origin xyz="0.019 0.0075 0" rpy="0 0 0"/>
   </joint>
 
+  <!-- thermal_camera_link origin = lens center at top of board on front face, right half -->
   <joint name="thermal_camera_joint" type="fixed">
     <parent link="tilt_link"/>
     <child link="thermal_camera_link"/>
-    <origin xyz="0.025 0.03 0" rpy="0 0 0"/>
+    <origin xyz="0.020 -0.0125 0.013" rpy="0 0 0"/>
   </joint>
 
 </robot>
