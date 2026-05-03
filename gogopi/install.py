@@ -10,7 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SERVICES_DIR = REPO_ROOT / "services"
 SYSTEMD_DIR = Path("/etc/systemd/system")
 
-SERVICES = ["hw_button_scan", "hw_wifi", "hw_find"]
+SERVICES = ["hw_button_scan", "hw_wifi"]
 
 
 def _require_root():

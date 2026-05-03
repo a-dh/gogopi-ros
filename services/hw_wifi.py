@@ -6,7 +6,13 @@ import logging
 import importlib
 import pigpio
 import pywifi
-from hw_find import get_cpu_serial_number
+
+
+def get_cpu_serial_number():
+    for line in open("/proc/cpuinfo"):
+        if line.startswith("Serial"):
+            return line.split(":")[-1].strip()[-16:].upper()
+    return "0000000000000000"
 
 log_file_path = "/boot/hiwonder_wifi.log"
 config_file_name = "hiwonder_wifi_conf.py"
