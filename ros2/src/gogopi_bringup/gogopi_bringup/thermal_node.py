@@ -7,6 +7,7 @@ Publishes MLX90640 thermal frames as a 32FC1 sensor_msgs/Image on
 
 import struct
 import time
+import numpy as np
 
 import rclpy
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, State
@@ -23,6 +24,7 @@ class ThermalNode(LifecycleNode):
         self.declare_parameter("i2c_frequency", 400000)
         self.declare_parameter("refresh_rate", "REFRESH_8_HZ")
         self.declare_parameter("device_address", 0x33)
+        self.declare_parameter("image_rotation", 0)  # 0, 90, 180, 270 degrees
 
         self._mlx = None
         self._i2c = None
@@ -114,6 +116,19 @@ class ThermalNode(LifecycleNode):
 
         width = int(self.get_parameter("image_width").value)
         height = int(self.get_parameter("image_height").value)
+
+        # Apply rotation if specified
+        rotation = int(self.get_parameter("image_rotation").value)
+        frame_array = np.array(self._frame).reshape((height, width))
+        if rotation == 90:
+            frame_array = np.rot90(frame_array, k=-1)  # clockwise
+            height, width = width, height
+        elif rotation == 180:
+            frame_array = np.rot90(frame_array, k=2)
+        elif rotation == 270:
+            frame_array = np.rot90(frame_array, k=1)  # counter-clockwise
+            height, width = width, height
+        self._frame = frame_array.flatten().tolist()
 
         msg = Image()
         msg.header.stamp = self.get_clock().now().to_msg()

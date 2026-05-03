@@ -42,6 +42,7 @@ def generate_launch_description():
             parameters=[{
                 "camera_device": "/dev/video0",
                 "frame_id": "camera_link",
+                "image_rotation": 0,
             }],
         ),
 
@@ -55,6 +56,7 @@ def generate_launch_description():
                 "frame_id": "thermal_camera_link",
                 "refresh_hz": 4.0,
                 "refresh_rate": "REFRESH_8_HZ",
+                "image_rotation": 0,
             }],
         ),
     ])

@@ -19,6 +19,7 @@ class CameraNode(LifecycleNode):
         self.declare_parameter("image_width", 640)
         self.declare_parameter("image_height", 480)
         self.declare_parameter("image_hz", 15.0)
+        self.declare_parameter("image_rotation", 0)  # 0, 90, 180, 270 degrees
 
         self._capture = None
         self._timer = None
@@ -81,6 +82,17 @@ class CameraNode(LifecycleNode):
         if channels != 3:
             self.get_logger().warning("Camera frame has unsupported number of channels")
             return
+
+        # Apply rotation if specified
+        rotation = int(self.get_parameter("image_rotation").value)
+        if rotation == 90:
+            frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+            height, width = width, height
+        elif rotation == 180:
+            frame = cv2.rotate(frame, cv2.ROTATE_180)
+        elif rotation == 270:
+            frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            height, width = width, height
 
         msg = Image()
         msg.header.stamp = self.get_clock().now().to_msg()

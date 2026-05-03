@@ -32,6 +32,7 @@ def generate_launch_description():
             parameters=[{
                 "camera_device": LaunchConfiguration("camera_device"),
                 "frame_id": LaunchConfiguration("camera_frame_id"),
+                "image_rotation": 0,
             }],
         ),
 
@@ -45,6 +46,7 @@ def generate_launch_description():
                 "frame_id": LaunchConfiguration("thermal_frame_id"),
                 "refresh_hz": LaunchConfiguration("thermal_refresh_hz"),
                 "refresh_rate": "REFRESH_8_HZ",
+                "image_rotation": 0,
             }],
         ),
     ])

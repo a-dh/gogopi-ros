@@ -14,7 +14,49 @@ ROS2 Jazzy driver stack for the GoGoPi differential-drive robot (Hiwonder expans
 | KEY 1 | 13 | 33 |
 | KEY 2 | 23 | 16 |
 
-## Prerequisites
+## Camera Pan/Tilt Mechanism
+
+The visual (USB) and thermal (MLX90640) cameras are mounted on a shared pan-tilt mechanism controlled by the robot's servos:
+
+- **Servo 1** (ID 1): Controls **tilt** (up/down movement)
+- **Servo 2** (ID 2): Controls **pan** (left/right movement)
+
+### Adjusting Camera Orientation in ROS
+
+To adjust the camera orientations, use the ROS service to set servo positions. Servo angles range from 0° to 180°.
+
+**Set pan (servo 2) to 90° (center):**
+```bash
+ros2 service call /gogopi/set_servo gogopi_msgs/srv/SetServo "{command: {servo_id: 2, use_pulse: false, angle_deg: 90.0}}"
+```
+
+**Set tilt (servo 1) to 45°:**
+```bash
+ros2 service call /gogopi/set_servo gogopi_msgs/srv/SetServo "{command: {servo_id: 1, use_pulse: false, angle_deg: 45.0}}"
+```
+
+**Monitor servo states:**
+```bash
+ros2 topic echo /gogopi/servo_state
+```
+
+For persistent orientation adjustments, modify the launch parameters or use ROS parameter updates. The servo states are published as `sensor_msgs/JointState` with names `["servo_1", "servo_2"]` for integration with ROS TF and robot state publishers.
+
+### Ensuring Consistent Image Orientations
+
+To ensure the thermal and visual camera images have consistent "up" edges (e.g., both oriented with the top of the image corresponding to the upward direction), adjust the `image_rotation` parameter for each camera node. This rotates the image by 0°, 90°, 180°, or 270°.
+
+**Set visual camera rotation to 180° (flip upside down):**
+```bash
+ros2 param set /camera_node image_rotation 180
+```
+
+**Set thermal camera rotation to 90° (rotate clockwise):**
+```bash
+ros2 param set /thermal_node image_rotation 90
+```
+
+For persistent settings, modify the launch file parameters (default is 0 for no rotation). After changing parameters, restart the nodes or use `ros2 lifecycle` commands to reconfigure.
 
 **System packages**
 
