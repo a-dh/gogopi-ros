@@ -77,6 +77,12 @@ tmux send-keys -t "$SESSION:shell" \
 
 tmux select-window -t "$SESSION:board"
 
+# status bar — refreshes every 5 s, all checks complete in <50 ms
+tmux set-option -t "$SESSION" status on
+tmux set-option -t "$SESSION" status-interval 5
+tmux set-option -t "$SESSION" status-right "#(python3 $REPO/services/tmux_status.py 2>/dev/null)"
+tmux set-option -t "$SESSION" status-right-length 60
+
 cat <<'EOF'
 ┌─ gopiros2 tmux session ──────────────────────────────────┐
 │  Ctrl-b 0  daemons  — hardware health check               │
