@@ -68,6 +68,8 @@ class BoardNode(LifecycleNode):
         self.create_service(SetServo, "/gogopi/set_servo", self._svc_set_servo)
         self.create_service(SetBool, "/gogopi/set_buzzer", self._svc_set_buzzer)
         self.create_service(Trigger, "/gogopi/e_stop", self._svc_e_stop)
+        self.create_service(Trigger, "/gogopi/enter_power_save", self._svc_enter_power_save)
+        self.create_service(Trigger, "/gogopi/exit_power_save", self._svc_exit_power_save)
 
         self.get_logger().info("Board configured")
         return TransitionCallbackReturn.SUCCESS
@@ -217,6 +219,43 @@ class BoardNode(LifecycleNode):
                 pass  # If not supported, ignore
         response.success = True
         response.message = "All motors stopped, servos disabled"
+        return response
+
+    def _svc_enter_power_save(self, request, response):
+        # Cancel timers to stop publishing
+        for t in self._timers:
+            t.cancel()
+        self._timers.clear()
+        # Stop motors
+        for i in range(1, 5):
+            self._Board.setMotor(i, 0)
+        # Disable servos
+        for i in range(1, 3):
+            try:
+                self._Board.setPWMServoPulse(i, 0, 0)
+            except:
+                pass
+        # Turn off buzzer and LEDs
+        self._Board.setBuzzer(0)
+        from HiwonderSDK.Board import LEDState
+        self._Board.setLed1(LEDState.OFF)
+        self._Board.setLed2(LEDState.OFF)
+        response.success = True
+        response.message = "Entered power save mode: timers stopped, motors/servos disabled, outputs off"
+        return response
+
+    def _svc_exit_power_save(self, request, response):
+        # Restart timers
+        def hz(param):
+            return 1.0 / self.get_parameter(param).value
+
+        self._timers = [
+            self.create_timer(hz("battery_hz"), self._publish_battery),
+            self.create_timer(hz("button_poll_hz"), self._publish_buttons),
+            self.create_timer(hz("state_hz"), self._publish_state),
+        ]
+        response.success = True
+        response.message = "Exited power save mode: timers restarted"
         return response
 
 

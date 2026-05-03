@@ -81,6 +81,22 @@ For manual servo disable, set pulse to 0 (may not be supported by all servo boar
 ros2 service call /gogopi/set_servo gogopi_msgs/srv/SetServo "{command: {servo_id: 1, use_pulse: true, pulse_us: 0}}"
 ```
 
+### Power Management Modes
+
+ROS2 idiom for power management uses services to switch between operational and low-power modes.
+
+**Enter lowest power settings (stop publishing, disable motors/servos, turn off outputs):**
+```bash
+ros2 service call /gogopi/enter_power_save std_srvs/Trigger
+```
+
+**Resume normal power settings (restart publishing, ready to sense and move):**
+```bash
+ros2 service call /gogopi/exit_power_save std_srvs/Trigger
+```
+
+Use these services for battery conservation or standby modes. Lifecycle transitions can also be used for node-level power management.
+
 **System packages**
 
 ```bash
