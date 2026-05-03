@@ -44,4 +44,17 @@ def generate_launch_description():
                 "frame_id": "camera_link",
             }],
         ),
+
+        LifecycleNode(
+            package="gogopi_bringup",
+            executable="thermal_node",
+            name="thermal_node",
+            namespace="",
+            output="screen",
+            parameters=[{
+                "frame_id": "thermal_camera_link",
+                "refresh_hz": 4.0,
+                "refresh_rate": "REFRESH_8_HZ",
+            }],
+        ),
     ])
