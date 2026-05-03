@@ -1,0 +1,12 @@
+[Unit]
+Description=GoGoPi UDP discovery beacon
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/python3 ${LOC}/services/hw_find.py -t GoGoPi
+ExecStop=/bin/systemctl kill hw_find
+
+[Install]
+WantedBy=multi-user.target

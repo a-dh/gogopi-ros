@@ -1,0 +1,14 @@
+[Unit]
+Description=GoGoPi WiFi manager
+After=pigpiod.service
+Requires=pigpiod.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+ExecStart=${LOC}/venv/bin/python3 ${LOC}/services/hw_wifi.py
+ExecStop=/bin/systemctl kill hw_wifi
+
+[Install]
+WantedBy=multi-user.target

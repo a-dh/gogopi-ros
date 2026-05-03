@@ -1,0 +1,14 @@
+[Unit]
+Description=GoGoPi button scan (WiFi reset / safe shutdown)
+After=pigpiod.service
+Requires=pigpiod.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+ExecStart=${LOC}/venv/bin/python3 ${LOC}/services/hw_button_scan.py
+ExecStop=/bin/systemctl kill hw_button_scan
+
+[Install]
+WantedBy=multi-user.target
