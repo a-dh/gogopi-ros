@@ -53,6 +53,9 @@ ros2 launch gogopi_bringup sensors_only.launch.py
 # Manually transition lifecycle nodes after launch
 ros2 lifecycle set /board_node configure
 ros2 lifecycle set /board_node activate
+
+# Git push behavior
+This repository has a local `.git/hooks/pre-push` hook that mirrors the same pushed refs to all configured remotes. Push commands from this repo will automatically attempt to update every remote.
 ```
 
 ## SDK architecture
