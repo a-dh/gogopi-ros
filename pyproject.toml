@@ -20,9 +20,12 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest", "black", "flake8"]
 
+[project.scripts]
+gogopi-install = "gogopi.install:main"
+
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["HiwonderSDK*"]
+include = ["HiwonderSDK*", "gogopi*"]
 
 [tool.black]
 line-length = 100
