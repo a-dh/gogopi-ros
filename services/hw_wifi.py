@@ -15,12 +15,36 @@ external_config_file_dir_path = "/boot"
 internal_config_file_path = os.path.join(internal_config_file_dir_path, config_file_name)
 external_config_file_path = os.path.join(external_config_file_dir_path, config_file_name)
 
-# LED blink timing in ms; modified by WIFI_MGR to reflect connection state
-led_on_time = 100
-led_off_time = 100
-
 LED1_PIN = 16   # BCM GPIO 16 / BOARD pin 36 (active-low)
 _pi = None
+
+
+def led_setup():
+    global _pi
+    _pi = pigpio.pi()
+    if not _pi.connected:
+        raise RuntimeError("Cannot connect to pigpiod")
+    _pi.set_mode(LED1_PIN, pigpio.OUTPUT)
+    _set_led(0, 255)  # start off
+
+
+def _set_led(on_ms, off_ms):
+    """Set LED1 blink pattern via pigpio software PWM (active-low).
+
+    on_ms=100, off_ms=0   → solid on
+    on_ms=0,   off_ms=100 → solid off
+    on_ms=50,  off_ms=50  → 10 Hz blink
+    on_ms=5,   off_ms=5   → 100 Hz rapid blink
+    """
+    if off_ms == 0:
+        _pi.set_PWM_dutycycle(LED1_PIN, 0)    # always LOW → LED on
+    elif on_ms == 0:
+        _pi.set_PWM_dutycycle(LED1_PIN, 255)  # always HIGH → LED off
+    else:
+        freq = max(1, round(1000 / (on_ms + off_ms)))
+        duty = round(255 * off_ms / (on_ms + off_ms))  # HIGH fraction = off fraction (active-low)
+        _pi.set_PWM_frequency(LED1_PIN, freq)
+        _pi.set_PWM_dutycycle(LED1_PIN, duty)
 
 
 def update_globals(module):
@@ -49,35 +73,6 @@ def check_dependens(logger):
         sys.exit(-1)
 
 
-def led_setup():
-    global _pi
-    _pi = pigpio.pi()
-    if not _pi.connected:
-        raise RuntimeError("Cannot connect to pigpiod")
-    _pi.set_mode(LED1_PIN, pigpio.OUTPUT)
-    _pi.write(LED1_PIN, 1)  # active-low: start off
-
-
-def led_thread():
-    """Blink LED1 according to led_on_time / led_off_time (ms units, 10 ms tick)."""
-    global led_on_time, led_off_time
-    local_on = local_off = 0
-    count = cycle_time = 0
-    while True:
-        if local_on != led_on_time or local_off != led_off_time:
-            local_on = led_on_time
-            local_off = led_off_time
-            cycle_time = local_on + local_off
-            count = 0
-        if count < local_on:
-            _pi.write(LED1_PIN, 0)  # active-low: on
-            count += 1
-        elif count < cycle_time:
-            _pi.write(LED1_PIN, 1)  # active-low: off
-            count += 1
-        else:
-            count = 0
-        time.sleep(0.01)
 
 
 if __name__ == "__main__":
@@ -134,12 +129,11 @@ if __name__ == "__main__":
         HW_WIFI_FREQ_BAND = 2.4
 
     def WIFI_MGR():
-        global HW_WIFI_AP_SSID, HW_WIFI_STA_SSID, HW_WIFI_AP_PASSWORD
-        global HW_WIFI_STA_PASSWORD, led_on_time, led_off_time
+        global HW_WIFI_AP_SSID, HW_WIFI_STA_SSID, HW_WIFI_AP_PASSWORD, HW_WIFI_STA_PASSWORD
 
         if HW_WIFI_MODE == 1:  # AP mode
-            led_on_time = 50
-            led_off_time = 50
+            if HW_WIFI_LED:
+                _set_led(50, 50)   # 10 Hz blink
             os.system("set +o history > /dev/null 2>&1")
             for proc in ("create_ap", "hostapd", "wpa_supplicant"):
                 os.system(f"pkill {proc} > /dev/null 2>&1")
@@ -164,8 +158,8 @@ if __name__ == "__main__":
             return -1
 
         elif HW_WIFI_MODE == 2:  # Client mode
-            led_on_time = 5
-            led_off_time = 5
+            if HW_WIFI_LED:
+                _set_led(5, 5)     # 100 Hz rapid blink
             for proc in ("create_ap", "hostapd", "wpa_supplicant"):
                 os.system(f"pkill {proc} > /dev/null 2>&1")
             logger.info("Connecting to " + HW_WIFI_STA_SSID)
@@ -194,8 +188,8 @@ if __name__ == "__main__":
                     threading.Thread(
                         target=lambda: os.system("dhclient wlan0"), daemon=True
                     ).start()
-                    led_on_time = 100
-                    led_off_time = 0
+                    if HW_WIFI_LED:
+                        _set_led(100, 0)   # solid on
                     break
                 time.sleep(1)
             else:
@@ -207,9 +201,6 @@ if __name__ == "__main__":
 
         else:
             logger.error("Invalid HW_WIFI_MODE")
-
-    if HW_WIFI_LED:
-        threading.Thread(target=led_thread, daemon=True).start()
 
     while True:
         if WIFI_MGR() == -1:
