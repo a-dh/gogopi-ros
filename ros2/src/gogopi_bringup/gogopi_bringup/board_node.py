@@ -25,7 +25,7 @@ from std_srvs.srv import SetBool, Trigger
 class BoardNode(LifecycleNode):
     def __init__(self):
         super().__init__("board_node")
-        self.declare_parameter("wheel_separation_m", 0.15)
+        self.declare_parameter("wheel_separation_m", 0.12)
         self.declare_parameter("max_speed_pct", 80)
         self.declare_parameter("motor_left_id", 1)
         self.declare_parameter("motor_right_id", 2)

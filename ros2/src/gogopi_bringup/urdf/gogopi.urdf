@@ -27,6 +27,7 @@
   <!-- Wheels -->
   <link name="wheel_front_left">
     <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
       <geometry>
         <cylinder radius="0.0335" length="0.021"/>
       </geometry>
@@ -35,6 +36,7 @@
       </material>
     </visual>
     <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
       <geometry>
         <cylinder radius="0.0335" length="0.021"/>
       </geometry>
@@ -47,6 +49,7 @@
 
   <link name="wheel_front_right">
     <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
       <geometry>
         <cylinder radius="0.0335" length="0.021"/>
       </geometry>
@@ -55,6 +58,7 @@
       </material>
     </visual>
     <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
       <geometry>
         <cylinder radius="0.0335" length="0.021"/>
       </geometry>
@@ -69,7 +73,16 @@
   <link name="castor_link">
     <visual>
       <geometry>
-        <sphere radius="0.01"/>
+        <sphere radius="0.007"/>
+      </geometry>
+      <material name="silver">
+        <color rgba="0.8 0.8 0.8 1.0"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.01675" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.011" length="0.0195"/>
       </geometry>
       <material name="black">
         <color rgba="0.1 0.1 0.1 1.0"/>
@@ -77,12 +90,12 @@
     </visual>
     <collision>
       <geometry>
-        <sphere radius="0.01"/>
+        <sphere radius="0.007"/>
       </geometry>
     </collision>
     <inertial>
       <mass value="0.05"/>
-      <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00001"/>
+      <inertia ixx="0.000001" ixy="0" ixz="0" iyy="0.000001" iyz="0" izz="0.000001"/>
     </inertial>
   </link>
 
@@ -197,14 +210,14 @@
   <joint name="wheel_front_left_joint" type="continuous">
     <parent link="base_link"/>
     <child link="wheel_front_left"/>
-    <origin xyz="0.0295 0.083 0" rpy="0 0 0"/>
+    <origin xyz="0.0295 0.060 0" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
   </joint>
 
   <joint name="wheel_front_right_joint" type="continuous">
     <parent link="base_link"/>
     <child link="wheel_front_right"/>
-    <origin xyz="0.0295 -0.083 0" rpy="0 0 0"/>
+    <origin xyz="0.0295 -0.060 0" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
   </joint>
 
@@ -212,7 +225,7 @@
   <joint name="castor_joint" type="fixed">
     <parent link="base_link"/>
     <child link="castor_link"/>
-    <origin xyz="-0.0545 0 0.01" rpy="0 0 0"/>
+    <origin xyz="-0.0545 0 -0.0265" rpy="0 0 0"/>
   </joint>
 
   <!-- Sensor tower -->
