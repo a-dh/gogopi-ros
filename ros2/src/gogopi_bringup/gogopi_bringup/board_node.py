@@ -35,6 +35,7 @@ class BoardNode(LifecycleNode):
 
         self._timers = []
         self._Board = None
+        self._active = False
 
     # ── lifecycle callbacks ────────────────────────────────────────────────
 
@@ -84,6 +85,7 @@ class BoardNode(LifecycleNode):
             self.create_timer(hz("button_poll_hz"), self._publish_buttons),
             self.create_timer(hz("state_hz"), self._publish_state),
         ]
+        self._active = True
         self.get_logger().info("Board active")
         return super().on_activate(state)
 
@@ -91,6 +93,7 @@ class BoardNode(LifecycleNode):
         for t in self._timers:
             t.cancel()
         self._timers.clear()
+        self._active = False
         self._Board.setMotor(1, 0)
         self._Board.setMotor(2, 0)
         self.get_logger().info("Board deactivated")
@@ -185,7 +188,7 @@ class BoardNode(LifecycleNode):
         self._Board.setLed2(LEDState.ON if msg.data else LEDState.OFF)
 
     def _cb_joint_states(self, msg: JointState):
-        if self._Board is None:
+        if not self._active:
             return
         joint_to_servo = {'tilt_joint': 1, 'pan_joint': 2}
         for name, pos in zip(msg.name, msg.position):

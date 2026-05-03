@@ -10,7 +10,8 @@
 
 SESSION="${1:-gopiros2}"
 WS="/home/albertd/gopiros2/ros2"
-SETUP="source /opt/ros/jazzy/setup.bash && source $WS/install/setup.bash"
+REPO="/home/albertd/gopiros2"
+SETUP="source /opt/ros/jazzy/setup.bash && source $WS/install/setup.bash && export PYTHONPATH=$REPO:\$PYTHONPATH"
 
 tmux kill-session -t "$SESSION" 2>/dev/null
 

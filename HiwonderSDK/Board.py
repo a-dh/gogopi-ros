@@ -139,10 +139,17 @@ def setPWMServoAngle(servo_id, angle):
     if servo_id < 1 or servo_id > 6:
         raise AttributeError("Invalid Servo ID: %d" % servo_id)
     index = servo_id - 1
-    angle = max(0, min(180, angle))
-    _i2c_write([__SERVO_ADDR + index, angle])
+    angle = max(0, min(180, round(angle)))
+    pulse = max(500, min(2500, int(((200 * angle) / 9) + 500)))
+    buf = (
+        [__SERVO_ADDR_CMD, 1]
+        + list((0).to_bytes(2, "little"))
+        + [servo_id]
+        + list(pulse.to_bytes(2, "little"))
+    )
+    _i2c_write(buf)
     __servo_angle[index] = angle
-    __servo_pulse[index] = int(((200 * angle) / 9) + 500)
+    __servo_pulse[index] = pulse
     return __servo_angle[index]
 
 
@@ -167,7 +174,7 @@ def setPWMServoPulse(servo_id, pulse=1500, use_time=1000):
 def getPWMServoAngle(servo_id):
     if servo_id < 1 or servo_id > 6:
         raise AttributeError("Invalid Servo ID: %d" % servo_id)
-    return __servo_pulse[servo_id - 1]
+    return __servo_angle[servo_id - 1]
 
 
 def getPWMServoPulse(servo_id):
