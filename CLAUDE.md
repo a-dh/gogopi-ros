@@ -19,8 +19,8 @@ gopiros2/
 │   └── src/
 │       ├── gogopi_msgs/   ← Custom msg/srv (CMake)
 │       └── gogopi_bringup/← Lifecycle nodes + launch files (ament_python)
-├── pyproject.toml         ← gogopi-sdk pip package (HiwonderSDK)
-└── Makefile               ← install/remove systemd services
+├── pyproject.toml         ← gogopi-sdk pip package (HiwonderSDK) + gogopi-install entry point
+└── gogopi/install.py      ← console script: sudo gogopi-install install|remove
 ```
 
 ## Commands
@@ -30,9 +30,9 @@ gopiros2/
 python3 -m venv venv && . venv/bin/activate
 pip install -e .                       # install gogopi-sdk (HiwonderSDK)
 
-# Install systemd services
-sudo make install
-sudo make remove
+# Install / remove systemd services (requires pip install -e . first)
+sudo gogopi-install install
+sudo gogopi-install remove
 
 # Required system daemons (must be running before any SDK or ROS2 node use)
 sudo systemctl start pigpiod
