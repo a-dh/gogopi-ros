@@ -13,12 +13,13 @@ setup(
         ("share/" + package_name, ["package.xml"]),
         (os.path.join("share", package_name, "launch"), glob("launch/*.launch.py")),
     ],
-    install_requires=["setuptools"],
+    install_requires=["setuptools", "opencv-python-headless"],
     zip_safe=True,
     entry_points={
         "console_scripts": [
             "board_node = gogopi_bringup.board_node:main",
             "sonar_node = gogopi_bringup.sonar_node:main",
+            "camera_node = gogopi_bringup.camera_node:main",
         ],
     },
 )

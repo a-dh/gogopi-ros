@@ -32,4 +32,16 @@ def generate_launch_description():
                 "frame_id": LaunchConfiguration("frame_id"),
             }],
         ),
+
+        LifecycleNode(
+            package="gogopi_bringup",
+            executable="camera_node",
+            name="camera_node",
+            namespace="",
+            output="screen",
+            parameters=[{
+                "camera_device": "/dev/video0",
+                "frame_id": "camera_link",
+            }],
+        ),
     ])
