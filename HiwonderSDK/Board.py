@@ -225,6 +225,38 @@ def getKey2():
     return pi.read(KEY2_PIN) == 0
 
 
+def test_drive(speed=30, duration=1.0):
+    """
+    Drive test: forward → stop → reverse → stop.
+    Runs motors 1 (left) and 2 (right) at ±speed% for duration seconds each.
+    Call after initialize(). Robot will move — clear the area first.
+    """
+    import logging
+    log = logging.getLogger(__name__)
+    log.warning("Drive test starting in 2 s — robot will move!")
+    time.sleep(2)
+
+    log.info("Forward at %d%%", speed)
+    setMotor(1, speed)
+    setMotor(2, speed)
+    time.sleep(duration)
+
+    log.info("Stop")
+    setMotor(1, 0)
+    setMotor(2, 0)
+    time.sleep(0.5)
+
+    log.info("Reverse at %d%%", speed)
+    setMotor(1, -speed)
+    setMotor(2, -speed)
+    time.sleep(duration)
+
+    log.info("Stop")
+    setMotor(1, 0)
+    setMotor(2, 0)
+    log.info("Drive test complete")
+
+
 if __name__ == "__main__":
     import logging
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -243,5 +275,8 @@ if __name__ == "__main__":
         setPixelColor(0, 0, 0, 255)
         setPixelColor(1, 255, 255, 255)
         show()
+        test_drive()
     finally:
+        setMotor(1, 0)
+        setMotor(2, 0)
         cleanup()
