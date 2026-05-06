@@ -231,7 +231,6 @@ def test_drive(speed=30, duration=1.0):
     Runs motors 1 (left) and 2 (right) at ±speed% for duration seconds each.
     Call after initialize(). Robot will move — clear the area first.
     """
-    import logging
     log = logging.getLogger(__name__)
     log.warning("Drive test starting in 2 s — robot will move!")
     time.sleep(2)
@@ -257,9 +256,39 @@ def test_drive(speed=30, duration=1.0):
     log.info("Drive test complete")
 
 
+def test_servos(offset=10, move_time_ms=500):
+    """
+    Servo test: centre each servo, nudge ±offset degrees, return to centre.
+    Exercises all 6 servos (servo_id 1–6). Call after initialize().
+    """
+    log = logging.getLogger(__name__)
+    center = 90
+    pause = move_time_ms / 1000.0 + 0.1
+    for sid in range(1, 7):
+        log.info("Servo %d: centre → -%d° → centre → +%d° → centre", sid, offset, offset)
+        setPWMServoAngle(sid, center)
+        time.sleep(pause)
+        setPWMServoAngle(sid, center - offset)
+        time.sleep(pause)
+        setPWMServoAngle(sid, center)
+        time.sleep(pause)
+        setPWMServoAngle(sid, center + offset)
+        time.sleep(pause)
+        setPWMServoAngle(sid, center)
+        time.sleep(pause)
+    log.info("Servo test complete")
+
+
 if __name__ == "__main__":
+    import argparse
     import logging
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+    parser = argparse.ArgumentParser(description="GoGoPi board hardware test")
+    parser.add_argument("--motors", action="store_true", help="run drive motor test (robot will move)")
+    parser.add_argument("--servos", action="store_true", help="run servo nudge test (±10° from centre)")
+    args = parser.parse_args()
+
     initialize()
     try:
         setLed1(LEDState.ON)
@@ -275,7 +304,10 @@ if __name__ == "__main__":
         setPixelColor(0, 0, 0, 255)
         setPixelColor(1, 255, 255, 255)
         show()
-        test_drive()
+        if args.motors:
+            test_drive()
+        if args.servos:
+            test_servos()
     finally:
         setMotor(1, 0)
         setMotor(2, 0)
