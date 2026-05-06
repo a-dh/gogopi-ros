@@ -6,7 +6,8 @@
 #   0 daemons  — ensure pigpiod + rpi-led-proxy are running
 #   1 urdf     — robot_state_publisher (publishes /robot_description + TF)
 #   2 board    — board_node (lifecycle: configure then activate)
-#   3 shell    — interactive shell, pre-sourced
+#   3 thermal  — thermal_node with I2C probe check (MLX90640 at 0x33)
+#   4 shell    — interactive shell, pre-sourced
 
 if [ "${1}" = "stop" ]; then
     SESSION="${2:-gopiros2}"
@@ -36,13 +37,23 @@ tmux new-window -t "$SESSION" -n "board"
 tmux send-keys -t "$SESSION:board" \
   "$SETUP && ros2 run gogopi_bringup board_node" Enter
 
-# 3: shell — configure+activate after board_node is ready, then stay interactive
+# 3: thermal_node — probe I2C first, then start node
+tmux new-window -t "$SESSION" -n "thermal"
+tmux send-keys -t "$SESSION:thermal" \
+  "$SETUP && (python3 -c \"import smbus2; b=smbus2.SMBus(1); b.read_byte(0x33); b.close(); print('MLX90640 found at 0x33')\" 2>/dev/null \
+  || echo 'WARNING: MLX90640 not detected at 0x33 — thermal_node will fail to configure') \
+  && ros2 run gogopi_bringup thermal_node" Enter
+
+# 4: shell — configure+activate board_node and thermal_node, then stay interactive
 tmux new-window -t "$SESSION" -n "shell"
 tmux send-keys -t "$SESSION:shell" \
   "$SETUP && sleep 4 \
   && ros2 service call /board_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 1}}' \
   && sleep 1 \
-  && ros2 service call /board_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 3}}'" Enter
+  && ros2 service call /board_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 3}}' \
+  && ros2 service call /thermal_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 1}}' \
+  && sleep 1 \
+  && ros2 service call /thermal_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 3}}'" Enter
 
 tmux select-window -t "$SESSION:board"
 
@@ -51,7 +62,8 @@ cat <<'EOF'
 │  Ctrl-b 0  daemons  — pigpiod + rpi-led-proxy status     │
 │  Ctrl-b 1  urdf     — robot_state_publisher              │
 │  Ctrl-b 2  board    — board_node (open here on attach)   │
-│  Ctrl-b 3  shell    — interactive shell, auto-lifecycle  │
+│  Ctrl-b 3  thermal  — thermal_node (MLX90640 check+run)  │
+│  Ctrl-b 4  shell    — interactive shell, auto-lifecycle  │
 │                                                          │
 │  Ctrl-b d  detach   (session keeps running in bg)        │
 │  Ctrl-b [  scroll mode  (q to exit)                      │
