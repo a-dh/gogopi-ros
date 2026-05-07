@@ -29,7 +29,7 @@ fi
 SESSION="${1:-gopiros2}"
 [ "$SESSION" = "start" ] && SESSION="gopiros2"
 WS="/home/albertd/gopiros2/ros2"
-SETUP="source /opt/ros/jazzy/setup.bash && source $WS/install/setup.bash && export PYTHONPATH=$REPO:\$PYTHONPATH"
+SETUP="source /opt/ros/jazzy/setup.bash && source $WS/install/setup.bash && export PYTHONPATH=$REPO:\$PYTHONPATH && export RMW_FASTRTPS_DEFAULT_PROFILES_FILE=$REPO/config/fastdds_tailscale.xml && export ROS_DOMAIN_ID=0"
 
 tmux kill-session -t "$SESSION" 2>/dev/null
 
