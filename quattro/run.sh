@@ -4,14 +4,14 @@
 # Build first: docker build -t gopiros2-rviz .
 
 set -e
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Allow X11 connections from Docker
 xhost +local:docker 2>/dev/null || true
 
-docker run --rm \
+docker run --rm -it \
   --network host \
-  -e DISPLAY="${DISPLAY:-:0}" \
-  -v /tmp/.X11-unix:/tmp/.X11-unix \
-  -v "${HOME}/.Xauthority:/root/.Xauthority:ro" \
+  --env DISPLAY="${DISPLAY:-:0}" \
+  --env XDG_RUNTIME_DIR=/tmp/runtime-root \
+  --env LIBGL_ALWAYS_SOFTWARE=1 \
+  --env MESA_GL_VERSION_OVERRIDE=3.3 \
+  --volume /tmp/.X11-unix:/tmp/.X11-unix \
   gopiros2-rviz
