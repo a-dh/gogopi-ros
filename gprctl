@@ -27,6 +27,7 @@ if [ "${1}" = "hwhealth" ]; then
 fi
 
 SESSION="${1:-gopiros2}"
+[ "$SESSION" = "start" ] && SESSION="gopiros2"
 WS="/home/albertd/gopiros2/ros2"
 SETUP="source /opt/ros/jazzy/setup.bash && source $WS/install/setup.bash && export PYTHONPATH=$REPO:\$PYTHONPATH"
 
