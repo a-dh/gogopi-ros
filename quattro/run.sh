@@ -7,6 +7,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RVIZ_CONF="$SCRIPT_DIR/rviz2_conf/default.rviz"
+URDF="$SCRIPT_DIR/../ros2/src/gogopi_bringup/urdf/gogopi.urdf"
 
 xhost +local:docker 2>/dev/null || true
 
@@ -18,5 +19,5 @@ docker run --rm -it \
   --env MESA_GL_VERSION_OVERRIDE=3.3 \
   --volume /tmp/.X11-unix:/tmp/.X11-unix \
   --volume "$RVIZ_CONF":/config/default.rviz \
-  gopiros2-rviz \
-  bash -c "source /opt/ros/jazzy/setup.bash && rviz2 -d /config/default.rviz"
+  --volume "$URDF":/config/gogopi.urdf:ro \
+  gopiros2-rviz
