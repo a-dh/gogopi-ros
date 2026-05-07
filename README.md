@@ -142,6 +142,25 @@ sudo systemctl enable --now rpi-led-proxy   # from rpi-led-proxy .deb
 
 **Python dependencies** — see [pyproject.toml](pyproject.toml).
 
+## Hardware self-test
+
+Run without ROS2, directly against the system Python that has the SDK installed:
+
+```bash
+/usr/bin/python3 HiwonderSDK/Board.py              # LEDs, NeoPixels, buzzer
+/usr/bin/python3 HiwonderSDK/Board.py --servos     # pan/tilt nudge ±10°
+/usr/bin/python3 HiwonderSDK/Board.py --motors     # forward/stop/reverse (robot moves)
+```
+
+Expected results:
+
+| Test | Expected |
+|---|---|
+| Default | Both LEDs flash on; NeoPixels cycle red→green then blue→white; buzzer beeps 1 s |
+| `--servos` | Each servo (1–6) nudges centre → −10° → centre → +10° → centre |
+| `--motors` | Robot drives forward then reverses at 30% for 1 s each; without battery, PWM tones only (no movement) — this is a pass |
+| Battery ADC | Returns 0 when no battery connected — expected |
+
 ## Install
 
 ```bash

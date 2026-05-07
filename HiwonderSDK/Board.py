@@ -124,7 +124,7 @@ def setMotor(index, speed):
     index -= 1
     speed = max(-100, min(100, speed))
     speed = -speed
-    _i2c_write([__MOTOR_ADDR + index, speed])
+    _i2c_write([__MOTOR_ADDR + index, speed & 0xFF])
     __motor_speed[index] = speed
     return __motor_speed[index]
 
