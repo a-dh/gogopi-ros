@@ -118,6 +118,8 @@ def main(args=None):
     executor.add_node(node)
     try:
         executor.spin()
+    except Exception as exc:
+        node.get_logger().error(f"Executor error: {exc}")
     finally:
         node.destroy_node()
         rclpy.shutdown()

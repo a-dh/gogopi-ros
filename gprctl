@@ -76,13 +76,13 @@ tmux send-keys -t "$SESSION:shell" \
   && ros2 service call /board_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 1}}' \
   && sleep 1 \
   && ros2 service call /board_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 3}}' \
-  && ros2 service call /sonar_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 1}}' \
+  ; timeout 10 ros2 service call /sonar_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 1}}' \
   && ros2 service call /thermal_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 1}}' \
-  ; ros2 service call /camera_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 1}}' \
+  ; timeout 10 ros2 service call /camera_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 1}}' \
   ; sleep 1 \
-  && ros2 service call /sonar_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 3}}' \
+  ; timeout 10 ros2 service call /sonar_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 3}}' \
   && ros2 service call /thermal_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 3}}' \
-  ; ros2 service call /camera_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 3}}'" Enter
+  ; timeout 10 ros2 service call /camera_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 3}}'" Enter
 
 tmux select-window -t "$SESSION:board"
 
