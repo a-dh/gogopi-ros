@@ -105,6 +105,7 @@ def check_i2c() -> dict[tuple[int, int], bool]:
     devices = [
         (1, 0x7A, "expansion board (motors / servos / ADC)"),
         (1, 0x77, "sonar module"),
+        (1, 0x33, "MLX90640 thermal camera"),
     ]
     out: dict[tuple[int, int], bool] = {}
     for bus, addr, desc in devices:
@@ -172,7 +173,7 @@ def check_daemons() -> tuple[bool, bool]:
     return pigpio_ok, led_ok
 
 
-def check_hardware_reads(pigpio_ok: bool, expansion_ok: bool, sonar_ok: bool) -> None:
+def check_hardware_reads(pigpio_ok: bool, expansion_ok: bool, sonar_ok: bool, thermal_ok: bool) -> None:
     print(f"\n{_B}  Hardware reads{_N}")
 
     if pigpio_ok and expansion_ok:
@@ -204,6 +205,31 @@ def check_hardware_reads(pigpio_ok: bool, expansion_ok: bool, sonar_ok: bool) ->
             ])
     else:
         _row(SKIP, "sonar range  (mm)", "I2C 0x77 unavailable")
+
+    if thermal_ok:
+        try:
+            import board
+            import busio
+            import adafruit_mlx90640
+            i2c = busio.I2C(board.SCL, board.SDA, frequency=400000)
+            mlx = adafruit_mlx90640.MLX90640(i2c)
+            frame = [0.0] * 768
+            mlx.getFrame(frame)
+            i2c.deinit()
+            _row(OK, "MLX90640 thermal  (°C centre pixel)", f"{frame[384]:.1f}")
+        except ImportError as exc:
+            _row(BAD, "MLX90640 thermal  (library)", str(exc))
+            _fail("adafruit-mlx90640 library missing", [
+                "Install  :  pip install adafruit-circuitpython-mlx90640",
+            ])
+        except Exception as exc:
+            _row(BAD, "MLX90640 thermal  (read)", str(exc))
+            _fail("MLX90640 read failed", [
+                "Verify I2C 0x33      :  i2cdetect -y 1  (look for 33)",
+                "Check power / cable  :  reseat connector",
+            ])
+    else:
+        _row(SKIP, "MLX90640 thermal  (read)", "I2C 0x33 unavailable")
 
 
 def check_ros2() -> None:
@@ -241,7 +267,8 @@ def main() -> None:
 
     expansion_ok = i2c.get((1, 0x7A), False)
     sonar_ok     = i2c.get((1, 0x77), False)
-    check_hardware_reads(pigpio_ok, expansion_ok, sonar_ok)
+    thermal_ok   = i2c.get((1, 0x33), False)
+    check_hardware_reads(pigpio_ok, expansion_ok, sonar_ok, thermal_ok)
 
     check_ros2()
 

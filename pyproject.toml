@@ -14,6 +14,8 @@ keywords = ["robotics", "raspberry-pi", "gogopi", "ros2"]
 dependencies = [
     "pigpio",
     "smbus2",
+    "adafruit-blinka",
+    "adafruit-circuitpython-mlx90640",
     "rpi-led-proxy @ ssh://albertd@gratzi/home/albertd/Repos/rp_ws281x_proxy",
 ]
 
