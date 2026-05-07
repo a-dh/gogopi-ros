@@ -22,7 +22,7 @@ if [ "${1}" = "stop" ]; then
 fi
 
 if [ "${1}" = "hwhealth" ]; then
-    python3 "$REPO/services/hw_check.py"
+    /usr/bin/python3 "$REPO/services/hw_check.py"
     exit $?
 fi
 
@@ -35,7 +35,7 @@ tmux kill-session -t "$SESSION" 2>/dev/null
 # 0: hardware health check (read-only — does not start services)
 tmux new-session -d -s "$SESSION" -n "daemons" -x 220 -y 50
 tmux send-keys -t "$SESSION:daemons" \
-  "python3 $REPO/services/hw_check.py" Enter
+  "/usr/bin/python3 $REPO/services/hw_check.py" Enter
 
 # 1: robot_state_publisher
 tmux new-window -t "$SESSION" -n "urdf"

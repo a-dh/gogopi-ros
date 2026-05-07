@@ -4,6 +4,8 @@
 import os
 import sys
 import subprocess
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="adafruit_blinka")
 
 # make HiwonderSDK importable from any cwd
 _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
