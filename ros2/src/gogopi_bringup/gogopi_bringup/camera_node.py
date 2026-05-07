@@ -4,8 +4,6 @@ GoGoPi USB camera lifecycle node.
 Publishes raw camera frames as sensor_msgs/Image on /gogopi/camera/image_raw.
 """
 
-import cv2
-import numpy as np
 import rclpy
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, State
 from sensor_msgs.msg import Image
@@ -26,6 +24,13 @@ class CameraNode(LifecycleNode):
         self._pub_image = None
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
+        global cv2
+        try:
+            import cv2
+        except ImportError as e:
+            self.get_logger().error(f"cv2 not available — install python3-opencv: {e}")
+            return TransitionCallbackReturn.FAILURE
+
         device = self.get_parameter("camera_device").value
         width = int(self.get_parameter("image_width").value)
         height = int(self.get_parameter("image_height").value)

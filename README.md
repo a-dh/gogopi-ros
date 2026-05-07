@@ -127,7 +127,7 @@ Use these services for battery conservation or standby modes. Lifecycle transiti
 **System packages**
 
 ```bash
-sudo apt install pigpio i2c-tools
+sudo apt install pigpio i2c-tools python3-opencv
 sudo raspi-config   # Interface Options → I2C → enable
 ```
 
@@ -166,15 +166,43 @@ pip install -e .   # make HiwonderSDK importable to ROS2's Python
 cd ros2
 colcon build
 source install/setup.bash
-
-ros2 launch gogopi_bringup robot.launch.py
 ```
 
-Both nodes start in the **unconfigured** lifecycle state. Transition them manually or via a lifecycle manager:
+### Session manager — `gprctl`
+
+`gprctl` starts a named tmux session with one window per node and automatically drives all lifecycle transitions:
+
+```bash
+./gprctl            # start (or restart) the gopiros2 session
+./gprctl stop       # kill the session
+./gprctl hwhealth   # run hardware health check in the terminal
+```
+
+Tmux windows:
+
+| # | Name | Contents |
+|---|---|---|
+| 0 | daemons | hardware health check (read-only) |
+| 1 | urdf | `robot_state_publisher` |
+| 2 | board | `board_node` |
+| 3 | sonar | I2C probe at 0x77, then `sonar_node` |
+| 4 | thermal | I2C probe at 0x33, then `thermal_node` (MLX90640) |
+| 5 | camera | `/dev/video0` check, then `camera_node` |
+| 6 | shell | configure + activate all nodes, then interactive |
+
+The status bar (bottom of the tmux session) shows hardware health, ROS node states, and battery level, refreshed every 5 s.
+
+`camera_node` requires `python3-opencv` (`sudo apt install python3-opencv`). If cv2 is absent the node logs a clear error and returns `FAILURE` from `on_configure`; all other nodes continue normally.
+
+### Manual lifecycle control
+
+To drive nodes manually instead of using `gprctl`:
 
 ```bash
 ros2 lifecycle set /board_node configure && ros2 lifecycle set /board_node activate
 ros2 lifecycle set /sonar_node configure && ros2 lifecycle set /sonar_node activate
+ros2 lifecycle set /thermal_node configure && ros2 lifecycle set /thermal_node activate
+ros2 lifecycle set /camera_node configure && ros2 lifecycle set /camera_node activate
 ```
 
 To run sensors only (no motors):
@@ -186,7 +214,7 @@ ros2 launch gogopi_bringup sensors_only.launch.py
 ## Architecture and topic reference
 
 See [CLAUDE.md](CLAUDE.md) for:
-- Full topic / service / parameter tables for `board_node` and `sonar_node`
+- Full topic / service / parameter tables for `board_node`, `sonar_node`, `thermal_node`, and `camera_node`
 - SDK two-phase design (`Board.initialize()` / `Board.cleanup()`)
 - WiFi and power-button service semantics
 - Custom message definitions (`gogopi_msgs`)
