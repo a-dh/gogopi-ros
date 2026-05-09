@@ -2,7 +2,7 @@ Package: gogopi-services
 Version: 0.2.0
 Architecture: all
 Maintainer: Albert den Haan <albert.denhaan@gmail.com>
-Depends: python3 (>= 3.10)
+Depends: python3 (>= 3.10), hostapd, iw, haveged, create_ap
 Description: GoGoPi robot systemd services
  Button scan (WiFi reset / safe shutdown) and WiFi manager
  for the GoGoPi robot platform.

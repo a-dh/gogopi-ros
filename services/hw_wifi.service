@@ -1,7 +1,8 @@
 [Unit]
 Description=GoGoPi WiFi manager
-After=pigpiod.service
+After=pigpiod.service haveged.service
 Requires=pigpiod.service
+Wants=haveged.service
 
 [Service]
 Type=simple
