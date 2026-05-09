@@ -175,6 +175,7 @@ if __name__ == "__main__":
 
     check_dependens(logger)
 
+    config_found = False
     for path, cfg_dir in [
         (config_file_name, None),
         (internal_config_file_path, internal_config_file_dir_path),
@@ -184,6 +185,12 @@ if __name__ == "__main__":
             if cfg_dir:
                 sys.path.insert(0, cfg_dir)
             update_globals(os.path.splitext(config_file_name)[0])
+            config_found = True
+
+    if not config_found:
+        logger.info("No WiFi config found — leaving existing WiFi setup unchanged")
+        _set_led(100, 0)  # solid on: assume existing connection is up
+        sys.exit(0)
 
     if HW_WIFI_RESET_NOW:
         for p in [config_file_name, internal_config_file_path, external_config_file_path]:
