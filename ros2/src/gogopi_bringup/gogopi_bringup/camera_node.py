@@ -5,6 +5,7 @@ Publishes raw camera frames as sensor_msgs/Image on /gogopi/camera/image_raw.
 """
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, State
 from sensor_msgs.msg import Image
 
@@ -118,14 +119,15 @@ def main(args=None):
     executor.add_node(node)
     try:
         executor.spin()
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     except Exception as exc:
         node.get_logger().error(f"Executor error: {exc}")
     finally:
         node.on_shutdown(None)  # release camera device before the process exits
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":

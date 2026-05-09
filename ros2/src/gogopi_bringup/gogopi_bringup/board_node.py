@@ -12,6 +12,7 @@ Lifecycle transitions:
 import math
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, State
 
 from geometry_msgs.msg import Twist
@@ -284,14 +285,15 @@ def main(args=None):
     executor.add_node(node)
     try:
         executor.spin()
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     except Exception as exc:
         node.get_logger().error(f"Executor error: {exc}")
     finally:
         node.on_shutdown(None)  # stop motors and release GPIO before the process exits
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":
