@@ -4,6 +4,7 @@
 import os
 import sys
 import subprocess
+import time
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="adafruit_blinka")
 
@@ -227,8 +228,20 @@ def check_hardware_reads(pigpio_ok: bool, expansion_ok: bool, sonar_ok: bool, th
                 i2c = busio.I2C(board.SCL, board.SDA, frequency=400000)
                 mlx = adafruit_mlx90640.MLX90640(i2c)
                 frame = [0.0] * 768
-                mlx.getFrame(frame)
+                # The smbus2 probe above can disturb the MLX90640 frame-ready
+                # state; retry once after one frame period (500 ms at 2 Hz).
+                last_exc: Exception | None = None
+                for _ in range(3):
+                    try:
+                        mlx.getFrame(frame)
+                        last_exc = None
+                        break
+                    except RuntimeError as exc:
+                        last_exc = exc
+                        time.sleep(0.5)
                 i2c.deinit()
+                if last_exc is not None:
+                    raise last_exc
                 _row(OK, "MLX90640 thermal  (°C centre pixel)", f"{frame[384]:.1f}")
             except ImportError as exc:
                 _row(BAD, "MLX90640 thermal  (library)", str(exc))
