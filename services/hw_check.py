@@ -4,7 +4,6 @@
 import os
 import sys
 import subprocess
-import time
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="adafruit_blinka")
 
@@ -72,6 +71,22 @@ def _i2c_probe(bus: int, addr: int) -> tuple[bool, str]:
         return False, str(exc)
 
 
+def _i2c_probe_mlx90640(bus: int) -> tuple[bool, str]:
+    # MLX90640 requires a 16-bit register address before any read.  A bare
+    # read_byte (no preceding register write) leaves the sensor in a corrupted
+    # state that requires a power cycle to clear.  Read the status register
+    # (0x8000) properly via i2c_rdwr instead.
+    try:
+        from smbus2 import SMBus, i2c_msg
+        with SMBus(bus) as b:
+            wr = i2c_msg.write(0x33, [0x80, 0x00])
+            rd = i2c_msg.read(0x33, 2)
+            b.i2c_rdwr(wr, rd)
+        return True, ""
+    except Exception as exc:
+        return False, str(exc)
+
+
 # ── check blocks ──────────────────────────────────────────────────────────────
 
 def check_services() -> dict[str, str]:
@@ -120,7 +135,10 @@ def check_i2c() -> dict[tuple[int, int], bool]:
     ]
     out: dict[tuple[int, int], bool] = {}
     for bus, addr, desc in devices:
-        ok, err = _i2c_probe(bus, addr)
+        if addr == 0x33:
+            ok, err = _i2c_probe_mlx90640(bus)
+        else:
+            ok, err = _i2c_probe(bus, addr)
         out[(bus, addr)] = ok
         _row(OK if ok else BAD, f"bus {bus} / 0x{addr:02X}  {desc}", "" if ok else err)
         if not ok:
@@ -228,20 +246,8 @@ def check_hardware_reads(pigpio_ok: bool, expansion_ok: bool, sonar_ok: bool, th
                 i2c = busio.I2C(board.SCL, board.SDA, frequency=400000)
                 mlx = adafruit_mlx90640.MLX90640(i2c)
                 frame = [0.0] * 768
-                # The smbus2 probe above can disturb the MLX90640 frame-ready
-                # state; retry once after one frame period (500 ms at 2 Hz).
-                last_exc: Exception | None = None
-                for _ in range(3):
-                    try:
-                        mlx.getFrame(frame)
-                        last_exc = None
-                        break
-                    except RuntimeError as exc:
-                        last_exc = exc
-                        time.sleep(0.5)
+                mlx.getFrame(frame)
                 i2c.deinit()
-                if last_exc is not None:
-                    raise last_exc
                 _row(OK, "MLX90640 thermal  (°C centre pixel)", f"{frame[384]:.1f}")
             except ImportError as exc:
                 _row(BAD, "MLX90640 thermal  (library)", str(exc))
