@@ -53,6 +53,14 @@ def _svc_result(name: str) -> str:
     return ""
 
 
+def _thermal_node_running() -> bool:
+    r = subprocess.run(
+        ["pgrep", "-f", "thermal_node"],
+        capture_output=True,
+    )
+    return r.returncode == 0
+
+
 def _i2c_probe(bus: int, addr: int) -> tuple[bool, str]:
     try:
         from smbus2 import SMBus
@@ -209,27 +217,30 @@ def check_hardware_reads(pigpio_ok: bool, expansion_ok: bool, sonar_ok: bool, th
         _row(SKIP, "sonar range  (mm)", "I2C 0x77 unavailable")
 
     if thermal_ok:
-        try:
-            import board
-            import busio
-            import adafruit_mlx90640
-            i2c = busio.I2C(board.SCL, board.SDA, frequency=400000)
-            mlx = adafruit_mlx90640.MLX90640(i2c)
-            frame = [0.0] * 768
-            mlx.getFrame(frame)
-            i2c.deinit()
-            _row(OK, "MLX90640 thermal  (°C centre pixel)", f"{frame[384]:.1f}")
-        except ImportError as exc:
-            _row(BAD, "MLX90640 thermal  (library)", str(exc))
-            _fail("adafruit-mlx90640 library missing", [
-                "Install  :  pip install adafruit-circuitpython-mlx90640",
-            ])
-        except Exception as exc:
-            _row(BAD, "MLX90640 thermal  (read)", str(exc))
-            _fail("MLX90640 read failed", [
-                "Verify I2C 0x33      :  i2cdetect -y 1  (look for 33)",
-                "Check power / cable  :  reseat connector",
-            ])
+        if _thermal_node_running():
+            _row(OK, "MLX90640 thermal  (I2C present)", "frame read skipped — thermal_node active")
+        else:
+            try:
+                import board
+                import busio
+                import adafruit_mlx90640
+                i2c = busio.I2C(board.SCL, board.SDA, frequency=400000)
+                mlx = adafruit_mlx90640.MLX90640(i2c)
+                frame = [0.0] * 768
+                mlx.getFrame(frame)
+                i2c.deinit()
+                _row(OK, "MLX90640 thermal  (°C centre pixel)", f"{frame[384]:.1f}")
+            except ImportError as exc:
+                _row(BAD, "MLX90640 thermal  (library)", str(exc))
+                _fail("adafruit-mlx90640 library missing", [
+                    "Install  :  pip install adafruit-circuitpython-mlx90640",
+                ])
+            except Exception as exc:
+                _row(BAD, "MLX90640 thermal  (read)", str(exc))
+                _fail("MLX90640 read failed", [
+                    "Verify I2C 0x33      :  i2cdetect -y 1  (look for 33)",
+                    "Check power / cable  :  reseat connector",
+                ])
     else:
         _row(SKIP, "MLX90640 thermal  (read)", "I2C 0x33 unavailable")
 
