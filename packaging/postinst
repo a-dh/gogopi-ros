@@ -1,0 +1,7 @@
+#!/bin/bash
+set -e
+systemctl daemon-reload
+for svc in hw_button_scan hw_wifi; do
+    systemctl enable "${svc}.service"
+    systemctl start "${svc}.service" || true
+done

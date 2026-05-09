@@ -8,5 +8,6 @@ build/
 ros2/build/
 ros2/install/
 ros2/log/
-*.service
+packaging/staging/
+packaging/*.deb
 .idea/

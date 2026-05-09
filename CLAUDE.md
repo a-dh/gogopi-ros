@@ -30,9 +30,13 @@ gopiros2/
 python3 -m venv venv && . venv/bin/activate
 pip install -e .                       # install gogopi-sdk (HiwonderSDK)
 
-# Install / remove systemd services (requires pip install -e . first)
-sudo gogopi-install install
-sudo gogopi-install remove
+# Build and install systemd services as a Debian package
+# (requires dpkg-deb and SSH access to gratzi for rpi-led-proxy)
+./packaging/build_deb.sh
+sudo dpkg -i packaging/gogopi-services_*.deb
+
+# Remove the package
+sudo dpkg -r gogopi-services
 
 # Required system daemons (must be running before any SDK or ROS2 node use)
 sudo systemctl start pigpiod

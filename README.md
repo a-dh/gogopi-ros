@@ -163,17 +163,24 @@ Expected results:
 
 ## Install
 
+**Systemd services** (button scan, WiFi manager) — installs a bundled venv under `/opt/gogopi/`:
+
+```bash
+./packaging/build_deb.sh                       # requires SSH access to gratzi for rpi-led-proxy
+sudo dpkg -i packaging/gogopi-services_*.deb
+```
+
+To remove:
+
+```bash
+sudo dpkg -r gogopi-services
+```
+
+**Python SDK** (for ROS2 nodes and direct SDK use):
+
 ```bash
 python3 -m venv venv && . venv/bin/activate
 pip install -e .
-
-sudo gogopi-install install   # generate, enable, and start systemd services
-```
-
-To remove services:
-
-```bash
-sudo gogopi-install remove
 ```
 
 ## Build and run (ROS2)

@@ -7,8 +7,7 @@ Requires=pigpiod.service
 Type=simple
 Restart=always
 RestartSec=5
-ExecStart=${LOC}/venv/bin/python3 ${LOC}/services/hw_button_scan.py
-ExecStop=/bin/systemctl kill hw_button_scan
+ExecStart=/opt/gogopi/venv/bin/python3 /opt/gogopi/services/hw_button_scan.py
 
 [Install]
 WantedBy=multi-user.target
