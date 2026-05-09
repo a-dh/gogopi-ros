@@ -118,9 +118,12 @@ def main(args=None):
     executor.add_node(node)
     try:
         executor.spin()
+    except KeyboardInterrupt:
+        pass
     except Exception as exc:
         node.get_logger().error(f"Executor error: {exc}")
     finally:
+        node.on_shutdown(None)  # release camera device before the process exits
         node.destroy_node()
         rclpy.shutdown()
 
