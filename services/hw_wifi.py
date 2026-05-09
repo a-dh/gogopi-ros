@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 import time
 import threading
@@ -69,7 +70,6 @@ def check_dependens(logger):
         ("ip a > /dev/null 2>&1", "iproute2"),
         ("dnsmasq --version > /dev/null 2>&1", "dnsmasq"),
         ("iw > /dev/null 2>&1", "iw"),
-        ("create_ap --version > /dev/null 2>&1", "create_ap"),
         ("haveged > /dev/null 2>&1", "haveged"),
     ]:
         if os.system(cmd) not in (0, 256):
@@ -77,6 +77,70 @@ def check_dependens(logger):
             exit_ = True
     if exit_:
         sys.exit(-1)
+
+
+def start_ap(ssid, password, gateway, country, freq_band, channel, logger):
+    iface = "wlan0"
+    hw_mode = "a" if float(freq_band) >= 5.0 else "g"
+
+    for proc in ("hostapd", "dnsmasq", "wpa_supplicant"):
+        subprocess.call(["pkill", proc], stderr=subprocess.DEVNULL)
+    time.sleep(0.5)
+
+    subprocess.call(["ip", "link", "set", iface, "up"])
+    subprocess.call(["ip", "addr", "flush", "dev", iface])
+    subprocess.call(["ip", "addr", "add", f"{gateway}/24", "dev", iface])
+
+    hostapd_lines = [
+        f"interface={iface}",
+        f"ssid={ssid}",
+        f"hw_mode={hw_mode}",
+        f"channel={channel}",
+        f"country_code={country}",
+        "ieee80211n=1",
+        "wmm_enabled=1",
+        "auth_algs=1",
+    ]
+    if password:
+        hostapd_lines += [
+            "wpa=2",
+            f"wpa_passphrase={password}",
+            "wpa_key_mgmt=WPA-PSK",
+            "rsn_pairwise=CCMP",
+        ]
+
+    net_prefix = ".".join(gateway.split(".")[:3])
+    dnsmasq_lines = [
+        f"interface={iface}",
+        "bind-interfaces",
+        "port=0",  # disable DNS, DHCP only — avoids conflict with systemd-resolved
+        f"dhcp-range={net_prefix}.100,{net_prefix}.200,255.255.255.0,24h",
+        f"dhcp-option=3,{gateway}",
+    ]
+
+    hostapd_conf = "/tmp/gogopi_hostapd.conf"
+    dnsmasq_conf = "/tmp/gogopi_dnsmasq.conf"
+    with open(hostapd_conf, "w") as f:
+        f.write("\n".join(hostapd_lines) + "\n")
+    with open(dnsmasq_conf, "w") as f:
+        f.write("\n".join(dnsmasq_lines) + "\n")
+
+    logger.info("Starting dnsmasq for DHCP on %s (%s.100–200)", iface, net_prefix)
+    dnsmasq_proc = subprocess.Popen(
+        ["dnsmasq", "--no-daemon", f"--conf-file={dnsmasq_conf}"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+
+    logger.info("Starting hostapd: SSID=%s hw_mode=%s channel=%s", ssid, hw_mode, channel)
+    hostapd_proc = subprocess.Popen(
+        ["hostapd", hostapd_conf],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    hostapd_proc.wait()
+    logger.info("hostapd exited (rc=%d)", hostapd_proc.returncode)
+
+    dnsmasq_proc.terminate()
+    dnsmasq_proc.wait()
 
 
 
@@ -140,34 +204,21 @@ if __name__ == "__main__":
         if HW_WIFI_MODE == 1:  # AP mode
             if HW_WIFI_LED:
                 _set_led(50, 50)   # 10 Hz blink
-            os.system("set +o history > /dev/null 2>&1")
-            for proc in ("create_ap", "hostapd", "wpa_supplicant"):
-                os.system(f"pkill {proc} > /dev/null 2>&1")
             if not isinstance(HW_WIFI_AP_PASSWORD, str):
                 HW_WIFI_AP_PASSWORD = ""
             if 0 < len(HW_WIFI_AP_PASSWORD) < 8:
                 HW_WIFI_AP_PASSWORD = ""
             if not isinstance(HW_WIFI_AP_SSID, str):
                 HW_WIFI_AP_SSID = "HW-" + sn[:8]
-            cmd = (
-                f"create_ap -n wlan0 --no-virt -g {HW_WIFI_AP_GATEWAY}"
-                f" --country {HW_WIFI_COUNTRY}"
-                f" --freq-band {HW_WIFI_FREQ_BAND}"
-                f" -c {HW_WIFI_CHANNEL}"
-                f" {HW_WIFI_AP_SSID} {HW_WIFI_AP_PASSWORD}"
-            )
-            logger.info("Create AP: " + HW_WIFI_AP_SSID)
-            t = threading.Thread(target=lambda: os.system(cmd), daemon=True)
-            t.start()
-            os.system("set -o history > /dev/null 2>&1")
-            t.join()
+            start_ap(HW_WIFI_AP_SSID, HW_WIFI_AP_PASSWORD, HW_WIFI_AP_GATEWAY,
+                     HW_WIFI_COUNTRY, HW_WIFI_FREQ_BAND, HW_WIFI_CHANNEL, logger)
             return -1
 
         elif HW_WIFI_MODE == 2:  # Client mode
             if HW_WIFI_LED:
                 _set_led(5, 5)     # 100 Hz rapid blink
-            for proc in ("create_ap", "hostapd", "wpa_supplicant"):
-                os.system(f"pkill {proc} > /dev/null 2>&1")
+            for proc in ("hostapd", "dnsmasq", "wpa_supplicant"):
+                subprocess.call(["pkill", proc], stderr=subprocess.DEVNULL)
             logger.info("Connecting to " + HW_WIFI_STA_SSID)
             t = threading.Thread(
                 target=lambda: os.system("wpa_supplicant -iwlan0 -C /var/run/wpa_supplicant"),
