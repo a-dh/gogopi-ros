@@ -19,11 +19,11 @@ class ThermalNode(LifecycleNode):
     def __init__(self):
         super().__init__("thermal_node")
         self.declare_parameter("frame_id", "thermal_camera_link")
-        self.declare_parameter("refresh_hz", 4.0)
+        self.declare_parameter("refresh_hz", 1.0)
         self.declare_parameter("image_width", 32)
         self.declare_parameter("image_height", 24)
         self.declare_parameter("i2c_frequency", 400000)
-        self.declare_parameter("refresh_rate", "REFRESH_8_HZ")
+        self.declare_parameter("refresh_rate", "REFRESH_2_HZ")
         self.declare_parameter("device_address", 0x33)
         self.declare_parameter("image_rotation", 0)  # 0, 90, 180, 270 degrees
 
@@ -57,10 +57,10 @@ class ThermalNode(LifecycleNode):
                 setattr(self._mlx, "refresh_rate", getattr(adafruit_mlx90640.RefreshRate, refresh_rate))
             else:
                 self.get_logger().warning(
-                    "Unknown refresh_rate %s, using REFRESH_8_HZ",
+                    "Unknown refresh_rate %s, using REFRESH_2_HZ",
                     refresh_rate,
                 )
-                self._mlx.refresh_rate = adafruit_mlx90640.RefreshRate.REFRESH_8_HZ
+                self._mlx.refresh_rate = adafruit_mlx90640.RefreshRate.REFRESH_2_HZ
         except Exception as exc:
             self.get_logger().error(f"MLX90640 init failed: {exc}")
             self._i2c = None
