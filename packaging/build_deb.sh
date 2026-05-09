@@ -28,7 +28,7 @@ python3 -m venv "$STAGING/opt/gogopi/venv"
 "$STAGING/opt/gogopi/venv/bin/pip" install --quiet \
     pigpio \
     pywifi \
-    "rpi-led-proxy @ ssh://albertd@gratzi/home/albertd/Repos/rp_ws281x_proxy"
+    "rpi-led-proxy @ ssh://git@gratzi:2222/Admin/rpi_ws281x_proxy"
 
 # DEBIAN control files
 sed "s/^Version: .*/Version: $VERSION/" "$REPO_ROOT/packaging/control" \
