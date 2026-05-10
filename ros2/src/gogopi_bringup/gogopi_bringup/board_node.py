@@ -42,7 +42,11 @@ class BoardNode(LifecycleNode):
     # ── lifecycle callbacks ────────────────────────────────────────────────
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
-        import HiwonderSDK.Board as Board  # import after rclpy.init to surface errors cleanly
+        try:
+            import HiwonderSDK.Board as Board
+        except Exception:
+            self.get_logger().error("HiwonderSDK import failed — install with: pip3 install --user --break-system-packages -e <repo>")
+            return TransitionCallbackReturn.FAILURE
 
         try:
             Board.initialize()

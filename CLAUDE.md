@@ -38,6 +38,9 @@ sudo dpkg -i packaging/gogopi-services_*.deb
 # Remove the package
 sudo dpkg -r gogopi-services
 
+# Install gogopi-sdk into system Python (required for ROS2 nodes — they use /usr/bin/python3, not the venv)
+pip3 install --user --break-system-packages -e .
+
 # ROS2 apt packages (beyond ros-jazzy-ros-base, install once)
 sudo apt install \
     ros-jazzy-ros2lifecycle \              # ros2 lifecycle CLI (set/get node states)

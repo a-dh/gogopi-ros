@@ -16,7 +16,6 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument("wheel_separation_m", default_value="0.15"),
         DeclareLaunchArgument("max_speed_pct", default_value="80"),
-        DeclareLaunchArgument("frame_id", default_value="sonar_link"),
 
         Node(
             package="robot_state_publisher",
@@ -36,17 +35,6 @@ def generate_launch_description():
             parameters=[{
                 "wheel_separation_m": LaunchConfiguration("wheel_separation_m"),
                 "max_speed_pct": LaunchConfiguration("max_speed_pct"),
-            }],
-        ),
-
-        LifecycleNode(
-            package="gogopi_bringup",
-            executable="sonar_node",
-            name="sonar_node",
-            namespace="",
-            output="screen",
-            parameters=[{
-                "frame_id": LaunchConfiguration("frame_id"),
             }],
         ),
 

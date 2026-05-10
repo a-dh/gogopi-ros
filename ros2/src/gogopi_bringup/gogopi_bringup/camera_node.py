@@ -36,7 +36,7 @@ class CameraNode(LifecycleNode):
         width = int(self.get_parameter("image_width").value)
         height = int(self.get_parameter("image_height").value)
 
-        self._capture = cv2.VideoCapture(device, cv2.CAP_ANY)
+        self._capture = cv2.VideoCapture(device, cv2.CAP_V4L2)
         self._capture.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self._capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
