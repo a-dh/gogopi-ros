@@ -40,8 +40,9 @@ sudo dpkg -r gogopi-services
 
 # ROS2 apt packages (beyond ros-jazzy-ros-base, install once)
 sudo apt install \
-    ros-jazzy-ros2lifecycle \   # ros2 lifecycle CLI (set/get node states)
-    ros-jazzy-ros2run           # ros2 run CLI (launch individual nodes)
+    ros-jazzy-ros2lifecycle \              # ros2 lifecycle CLI (set/get node states)
+    ros-jazzy-ros2run \                   # ros2 run CLI (launch individual nodes)
+    ros-jazzy-compressed-image-transport  # JPEG compression for camera topics (required for RViz2 over VPN)
 
 # YDLidar SDK — build and install once (system-wide prerequisite for lidar_node)
 # Source: https://github.com/YDLIDAR/YDLidar-SDK  (currently at tag V1.2.7)
