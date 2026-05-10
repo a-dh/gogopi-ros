@@ -97,7 +97,7 @@ def _i2c_write(data):
 
 def _i2c_write_read(write_data, read_count):
     handle = _i2c_open()
-    cmd = [0, __i2c_addr, len(write_data)] + list(write_data) + [1, __i2c_addr, read_count]
+    cmd = [7, len(write_data)] + list(write_data) + [6, read_count, 0]
     return pi.i2c_zip(handle, cmd)
 
 
@@ -184,9 +184,9 @@ def getPWMServoPulse(servo_id):
 
 
 def getBattery():
-    result = _i2c_write_read([__ADC_BAT_ADDR], 2)
-    if result[0] >= 2:
-        return result[1] | (result[2] << 8)
+    count, data = _i2c_write_read([__ADC_BAT_ADDR], 2)
+    if count >= 2:
+        return data[0] | (data[1] << 8)
     return 0
 
 
