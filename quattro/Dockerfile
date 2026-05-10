@@ -3,6 +3,7 @@ FROM osrf/ros:jazzy-desktop
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ros-jazzy-robot-state-publisher \
       ros-jazzy-joint-state-publisher-gui \
+      ros-jazzy-compressed-image-transport \
     && rm -rf /var/lib/apt/lists/*
 
 COPY fastdds_tailscale.xml /config/fastdds_tailscale.xml
