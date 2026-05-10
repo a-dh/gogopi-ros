@@ -283,7 +283,7 @@ def check_hardware_reads(pigpio_ok: bool, expansion_ok: bool, sonar_ok: bool, th
 
 
 def check_lidar() -> None:
-    print(f"\n{_B}  LiDAR (YDLidar TX){_N}")
+    print(f"\n{_B}  LiDAR (YDLidar TX8){_N}")
 
     port = "/dev/ydlidar"
 
