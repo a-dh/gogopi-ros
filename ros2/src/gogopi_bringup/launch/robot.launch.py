@@ -1,14 +1,31 @@
+import os
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import LifecycleNode
+from launch_ros.actions import LifecycleNode, Node
 
 
 def generate_launch_description():
+    urdf = os.path.join(
+        get_package_share_directory("gogopi_bringup"), "urdf", "gogopi.urdf"
+    )
+    with open(urdf, "r") as f:
+        robot_description = f.read()
+
     return LaunchDescription([
         DeclareLaunchArgument("wheel_separation_m", default_value="0.15"),
         DeclareLaunchArgument("max_speed_pct", default_value="80"),
         DeclareLaunchArgument("frame_id", default_value="sonar_link"),
+
+        Node(
+            package="robot_state_publisher",
+            executable="robot_state_publisher",
+            name="robot_state_publisher",
+            output="screen",
+            parameters=[{"robot_description": robot_description}],
+            remappings=[("/joint_states", "/gogopi/servo_state")],
+        ),
 
         LifecycleNode(
             package="gogopi_bringup",
