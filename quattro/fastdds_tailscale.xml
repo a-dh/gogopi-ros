@@ -18,16 +18,13 @@
       </userTransports>
       <useBuiltinTransports>false</useBuiltinTransports>
       <builtin>
-        <discovery_config>
-          <discoveryProtocol>SIMPLE</discoveryProtocol>
-          <initialPeersList>
-            <locator>
-              <udpv4>
-                <address>100.75.56.5</address>  <!-- gopiros2 Tailscale IP -->
-              </udpv4>
-            </locator>
-          </initialPeersList>
-        </discovery_config>
+        <initialPeersList>
+          <locator>
+            <udpv4>
+              <address>100.75.56.5</address>  <!-- gopiros2 Tailscale IP -->
+            </udpv4>
+          </locator>
+        </initialPeersList>
         <metatrafficUnicastLocatorList>
           <locator>
             <udpv4>
