@@ -4,6 +4,7 @@
 import os
 import sys
 import subprocess
+import time
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="adafruit_blinka")
 
@@ -95,6 +96,49 @@ def _i2c_probe_mlx90640(bus: int) -> tuple[bool, str]:
         return True, ""
     except Exception as exc:
         return False, str(exc)
+
+
+# ── uhubctl helpers ───────────────────────────────────────────────────────────
+
+def _uhubctl_available() -> bool:
+    return subprocess.run(["which", "uhubctl"], capture_output=True).returncode == 0
+
+
+def _uhubctl_sudoers_ok() -> bool:
+    return os.path.exists("/etc/sudoers.d/gogopi-ros2")
+
+
+def _uhubctl_off_ports() -> list[tuple[str, int]]:
+    """Return (hub, port) pairs that are currently powered off according to uhubctl."""
+    try:
+        r = subprocess.run(["sudo", "uhubctl"], capture_output=True, text=True, timeout=10)
+        if r.returncode != 0:
+            return []
+        off: list[tuple[str, int]] = []
+        hub = None
+        for line in r.stdout.splitlines():
+            line = line.strip()
+            if line.startswith("Current status for hub "):
+                hub = line.split()[4]
+            elif hub and line.startswith("Port "):
+                parts = line.split()
+                # "Port 4: 0000 off"  → parts[3] == "off"
+                if len(parts) >= 4 and parts[3] == "off":
+                    try:
+                        off.append((hub, int(parts[1].rstrip(":"))))
+                    except ValueError:
+                        pass
+        return off
+    except Exception:
+        return []
+
+
+def _uhubctl_power_on(hub: str, port: int) -> bool:
+    r = subprocess.run(
+        ["sudo", "uhubctl", "-l", hub, "-p", str(port), "-a", "on"],
+        capture_output=True, text=True, timeout=10,
+    )
+    return r.returncode == 0
 
 
 # ── check blocks ──────────────────────────────────────────────────────────────
@@ -287,9 +331,50 @@ def check_lidar() -> None:
 
     port = "/dev/ydlidar"
 
-    # serial device present
+    # uhubctl: USB port power control
+    uhub_avail = _uhubctl_available()
+    uhub_sudo  = _uhubctl_sudoers_ok() if uhub_avail else False
+    if uhub_avail and uhub_sudo:
+        _row(OK, "uhubctl  (USB port power control)")
+    elif uhub_avail:
+        _row(SKIP, "uhubctl  (USB port power control)",
+             "sudoers rule missing — run: sudo ros2/setup_system.sh")
+        _fail("uhubctl sudoers rule not installed", [
+            "Install  :  sudo ros2/setup_system.sh",
+        ])
+    else:
+        _row(BAD, "uhubctl  (USB port power control)",
+             "not installed — run: sudo ros2/setup_system.sh")
+        _fail("uhubctl not installed", [
+            "Install  :  sudo ros2/setup_system.sh",
+        ])
+
+    # serial device — attempt USB power recovery if absent and uhubctl is usable
     device_ok = os.path.exists(port)
-    _row(OK if device_ok else BAD, f"serial device  {port}")
+    usb_recovered_hub: str | None = None
+
+    if not device_ok and uhub_avail and uhub_sudo:
+        off_ports = _uhubctl_off_ports()
+        if off_ports:
+            _row(SKIP, f"serial device  {port}",
+                 f"absent — {len(off_ports)} USB port(s) off, attempting recovery")
+            for hub, p in off_ports:
+                if _uhubctl_power_on(hub, p):
+                    time.sleep(2.5)     # wait for USB re-enumeration and udev symlink
+                    if os.path.exists(port):
+                        device_ok = True
+                        usb_recovered_hub = f"hub {hub} port {p}"
+                        _row(OK, f"serial device  {port}",
+                             f"recovered after powering on {usb_recovered_hub}")
+                        break
+            if not device_ok:
+                _row(BAD, f"serial device  {port}",
+                     "still absent after USB power restore")
+        else:
+            _row(BAD, f"serial device  {port}")
+    else:
+        _row(OK if device_ok else BAD, f"serial device  {port}")
+
     if not device_ok:
         _fail(f"LiDAR serial device {port!r} not found", [
             "Check udev rule      :  ls -la /dev/ydlidar",
@@ -325,8 +410,9 @@ def check_lidar() -> None:
         ])
 
     # SDK probe — initialize only (no turnOn / no motor spin)
+    node_running = _lidar_node_running()
     if device_ok and ydlidar_ok:
-        if _lidar_node_running():
+        if node_running:
             _row(OK, "YDLidar SDK probe", "skipped — lidar_node active")
         else:
             try:
@@ -359,6 +445,18 @@ def check_lidar() -> None:
         _row(SKIP, "YDLidar SDK probe", "serial device absent")
     else:
         _row(SKIP, "YDLidar SDK probe", "ydlidar package missing")
+
+    # lidar_node process state
+    if usb_recovered_hub:
+        if node_running:
+            _row(SKIP, "lidar_node process",
+                 "running but USB was cut — re-activate: ros2 lifecycle set /lidar_node activate")
+        else:
+            _row(SKIP, "lidar_node process",
+                 "not running — USB restored, start the node when ready")
+    else:
+        _row(OK if node_running else SKIP, "lidar_node process",
+             "running" if node_running else "not running")
 
 
 def check_ros2() -> None:

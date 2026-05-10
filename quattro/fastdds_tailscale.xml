@@ -1,22 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
+<!-- Desktop-side FastDDS config for Tailscale VPN.
+     Keeps builtin transports so local ros2 CLI commands work normally.
+     Adds gopiros2 as an explicit unicast peer so discovery crosses the VPN. -->
 <profiles xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
-
-  <transport_descriptors>
-    <transport_descriptor>
-      <transport_id>tailscale_udp</transport_id>
-      <type>UDPv4</type>
-      <interfaceWhiteList>
-        <address>100.77.219.91</address>  <!-- quattro Tailscale IP -->
-      </interfaceWhiteList>
-    </transport_descriptor>
-  </transport_descriptors>
 
   <participant profile_name="default_profile" is_default_profile="true">
     <rtps>
-      <userTransports>
-        <transport_id>tailscale_udp</transport_id>
-      </userTransports>
-      <useBuiltinTransports>false</useBuiltinTransports>
       <builtin>
         <initialPeersList>
           <locator>
@@ -25,13 +14,6 @@
             </udpv4>
           </locator>
         </initialPeersList>
-        <metatrafficUnicastLocatorList>
-          <locator>
-            <udpv4>
-              <address>100.77.219.91</address>
-            </udpv4>
-          </locator>
-        </metatrafficUnicastLocatorList>
       </builtin>
     </rtps>
   </participant>
