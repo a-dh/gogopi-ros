@@ -1,6 +1,14 @@
 <?xml version="1.0"?>
 <robot name="gogopi">
 
+  <!-- Dummy root required by KDL — base_link cannot carry inertia as root -->
+  <link name="base_footprint"/>
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
   <!-- Base link (body) -->
   <link name="base_link">
     <visual>
