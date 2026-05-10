@@ -19,6 +19,7 @@ setup(
         "opencv-python-headless",
         "adafruit-blinka",
         "adafruit-circuitpython-mlx90640",
+        "ydlidar",
     ],
     zip_safe=True,
     entry_points={
@@ -27,6 +28,7 @@ setup(
             "sonar_node = gogopi_bringup.sonar_node:main",
             "camera_node = gogopi_bringup.camera_node:main",
             "thermal_node = gogopi_bringup.thermal_node:main",
+            "lidar_node = gogopi_bringup.lidar_node:main",
         ],
     },
 )

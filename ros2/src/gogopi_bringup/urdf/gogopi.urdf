@@ -238,6 +238,27 @@
     </inertial>
   </link>
 
+  <!-- Lidar -->
+  <link name="lidar_link">
+    <visual>
+      <geometry>
+        <cylinder radius="0.040" length="0.015"/>
+      </geometry>
+      <material name="lidar_blue">
+        <color rgba="0.2 0.4 0.8 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.040" length="0.015"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.08"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+    </inertial>
+  </link>
+
   <!-- Joints -->
   <!-- Wheels -->
   <joint name="wheel_front_left_joint" type="continuous">
@@ -299,6 +320,15 @@
     <parent link="tilt_link"/>
     <child link="thermal_camera_link"/>
     <origin xyz="0.020 -0.0125 0.013" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Lidar: spinner centre at wheel-axis x, robot centreline y, 130 mm above floor -->
+  <!-- floor = wheel_centre_z − wheel_radius = 0 − 0.0335 = −0.0335 m in base_link  -->
+  <!-- lidar z = −0.0335 + 0.130 = 0.0965 m                                          -->
+  <joint name="lidar_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="lidar_link"/>
+    <origin xyz="0.0295 0 0.0965" rpy="0 0 0"/>
   </joint>
 
 </robot>

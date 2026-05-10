@@ -69,7 +69,14 @@ tmux send-keys -t "$SESSION:camera" \
   || echo 'WARNING: /dev/video0 not found — camera_node will fail to configure') \
   && ros2 run gogopi_bringup camera_node" Enter
 
-# 6: shell — configure+activate all nodes, then stay interactive
+# 6: lidar_node — check /dev/ttyUSB0 first, then start node
+tmux new-window -t "$SESSION" -n "lidar"
+tmux send-keys -t "$SESSION:lidar" \
+  "$SETUP && (test -e /dev/ttyUSB0 && echo 'YDLidar found at /dev/ttyUSB0' \
+  || echo 'WARNING: /dev/ttyUSB0 not found — lidar_node will fail to configure') \
+  && ros2 run gogopi_bringup lidar_node" Enter
+
+# 7: shell — configure+activate all nodes, then stay interactive
 tmux new-window -t "$SESSION" -n "shell"
 tmux send-keys -t "$SESSION:shell" \
   "$SETUP && sleep 4 \
@@ -79,12 +86,15 @@ tmux send-keys -t "$SESSION:shell" \
   ; timeout 10 ros2 service call /sonar_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 1}}' \
   && ros2 service call /thermal_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 1}}' \
   ; timeout 10 ros2 service call /camera_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 1}}' \
+  ; timeout 10 ros2 service call /lidar_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 1}}' \
   ; sleep 1 \
   ; timeout 10 ros2 service call /sonar_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 3}}' \
   && ros2 service call /thermal_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 3}}' \
-  ; timeout 10 ros2 service call /camera_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 3}}'" Enter
+  ; timeout 10 ros2 service call /camera_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 3}}' \
+  ; timeout 10 ros2 service call /lidar_node/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 3}}'" Enter
 
 tmux select-window -t "$SESSION:board"
+
 
 # status bar — refreshes every 5 s, all checks complete in <50 ms
 tmux set-option -t "$SESSION" status on
@@ -100,7 +110,8 @@ cat <<'EOF'
 │  Ctrl-b 3  sonar    — sonar_node (0x77 check+run)        │
 │  Ctrl-b 4  thermal  — thermal_node (MLX90640 check+run)  │
 │  Ctrl-b 5  camera   — camera_node (/dev/video0 check)    │
-│  Ctrl-b 6  shell    — interactive shell, auto-lifecycle  │
+│  Ctrl-b 6  lidar    — lidar_node (/dev/ttyUSB0 check)    │
+│  Ctrl-b 7  shell    — interactive shell, auto-lifecycle  │
 │                                                          │
 │  Ctrl-b d  detach   (session keeps running in bg)        │
 │  Ctrl-b [  scroll mode  (q to exit)                      │

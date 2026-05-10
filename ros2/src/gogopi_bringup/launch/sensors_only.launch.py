@@ -11,6 +11,7 @@ def generate_launch_description():
         DeclareLaunchArgument("camera_frame_id", default_value="camera_link"),
         DeclareLaunchArgument("thermal_frame_id", default_value="thermal_camera_link"),
         DeclareLaunchArgument("thermal_refresh_hz", default_value="1.0"),
+        DeclareLaunchArgument("lidar_port", default_value="/dev/ttyUSB0"),
 
         LifecycleNode(
             package="gogopi_bringup",
@@ -47,6 +48,19 @@ def generate_launch_description():
                 "refresh_hz": LaunchConfiguration("thermal_refresh_hz"),
                 "refresh_rate": "REFRESH_2_HZ",
                 "image_rotation": 0,
+            }],
+        ),
+
+        LifecycleNode(
+            package="gogopi_bringup",
+            executable="lidar_node",
+            name="lidar_node",
+            namespace="",
+            output="screen",
+            parameters=[{
+                "port": LaunchConfiguration("lidar_port"),
+                "frame_id": "lidar_link",
+                "scan_hz": 7.0,
             }],
         ),
     ])

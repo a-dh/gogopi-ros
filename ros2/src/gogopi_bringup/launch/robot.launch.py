@@ -59,4 +59,18 @@ def generate_launch_description():
                 "image_rotation": 0,
             }],
         ),
+
+        LifecycleNode(
+            package="gogopi_bringup",
+            executable="lidar_node",
+            name="lidar_node",
+            namespace="",
+            output="screen",
+            parameters=[{
+                "port": "/dev/ttyUSB0",
+                "baudrate": 115200,
+                "frame_id": "lidar_link",
+                "scan_hz": 7.0,
+            }],
+        ),
     ])
