@@ -38,6 +38,11 @@ sudo dpkg -i packaging/gogopi-services_*.deb
 # Remove the package
 sudo dpkg -r gogopi-services
 
+# ROS2 apt packages (beyond ros-jazzy-ros-base, install once)
+sudo apt install \
+    ros-jazzy-ros2lifecycle \   # ros2 lifecycle CLI (set/get node states)
+    ros-jazzy-ros2run           # ros2 run CLI (launch individual nodes)
+
 # YDLidar SDK — build and install once (system-wide prerequisite for lidar_node)
 # Source: https://github.com/YDLIDAR/YDLidar-SDK  (currently at tag V1.2.7)
 # Installs libydlidar_sdk.a + Python bindings to /usr/local/lib/python3/dist-packages/
