@@ -98,7 +98,14 @@ Uses `smbus2` with `with SMBus(...) as bus:` per call. No `initialize()`/`cleanu
 
 ## ROS2 node architecture
 
-Both nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured state; an operator or a launch manager must drive transitions.
+All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured state; an operator or a launch manager must drive transitions.
+
+| Node | Executable | Key dependency |
+|---|---|---|
+| `board_node` | `board_node` | pigpiod, I2C 0x7A, rpi-led-proxy |
+| `sonar_node` | `sonar_node` | I2C 0x77 |
+| `thermal_node` | `thermal_node` | I2C 0x33 (MLX90640) |
+| `lidar_node` | `lidar_node` | `/dev/ydlidar` (YDLidar TX8, USB-serial) |
 
 ### board_node — `gogopi_bringup/board_node.py`
 
