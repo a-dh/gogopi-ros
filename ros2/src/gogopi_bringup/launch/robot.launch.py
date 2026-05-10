@@ -71,6 +71,8 @@ def generate_launch_description():
                 "baudrate": 115200,
                 "frame_id": "lidar_link",
                 "scan_hz": 7.0,
+                "single_channel": True,
+                "motor_dtr_ctrl": True,
             }],
         ),
     ])

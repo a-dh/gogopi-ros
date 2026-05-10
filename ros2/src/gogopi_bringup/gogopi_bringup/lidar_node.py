@@ -31,6 +31,8 @@ class LidarNode(LifecycleNode):
         self.declare_parameter("scan_hz", 7.0)
         self.declare_parameter("range_min", 0.1)
         self.declare_parameter("range_max", 12.0)
+        self.declare_parameter("single_channel", True)
+        self.declare_parameter("motor_dtr_ctrl", True)
 
         self._laser = None
         self._ydlidar = None
@@ -65,7 +67,8 @@ class LidarNode(LifecycleNode):
             self._laser.setlidaropt(ydlidar.LidarPropMinRange,        rng_min)
             self._laser.setlidaropt(ydlidar.LidarPropMaxAngle,        180.0)
             self._laser.setlidaropt(ydlidar.LidarPropMinAngle,       -180.0)
-            self._laser.setlidaropt(ydlidar.LidarPropSingleChannel,   False)
+            self._laser.setlidaropt(ydlidar.LidarPropSingleChannel,      self.get_parameter("single_channel").value)
+            self._laser.setlidaropt(ydlidar.LidarPropSupportMotorDtrCtrl, self.get_parameter("motor_dtr_ctrl").value)
 
             if not self._laser.initialize():
                 self.get_logger().error("YDLidar initialize() failed — check port and power")
