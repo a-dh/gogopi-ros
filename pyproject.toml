@@ -16,7 +16,7 @@ dependencies = [
     "smbus2",
     "adafruit-blinka",
     "adafruit-circuitpython-mlx90640",
-    "rpi-led-proxy @ ssh://git@gratzi:2222/Admin/rpi_ws281x_proxy",
+    "rpi-led-proxy @ git+ssh://git@gratzi:2222/albertd/rpi_ws281x_proxy",
 ]
 
 [project.optional-dependencies]
