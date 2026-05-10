@@ -67,7 +67,7 @@ def generate_launch_description():
             namespace="",
             output="screen",
             parameters=[{
-                "port": "/dev/ttyUSB0",
+                "port": "/dev/ydlidar",
                 "baudrate": 115200,
                 "frame_id": "lidar_link",
                 "scan_hz": 7.0,

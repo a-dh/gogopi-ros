@@ -11,7 +11,7 @@ def generate_launch_description():
         DeclareLaunchArgument("camera_frame_id", default_value="camera_link"),
         DeclareLaunchArgument("thermal_frame_id", default_value="thermal_camera_link"),
         DeclareLaunchArgument("thermal_refresh_hz", default_value="1.0"),
-        DeclareLaunchArgument("lidar_port", default_value="/dev/ttyUSB0"),
+        DeclareLaunchArgument("lidar_port", default_value="/dev/ydlidar"),
 
         LifecycleNode(
             package="gogopi_bringup",
