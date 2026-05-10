@@ -6,20 +6,16 @@ Completed scans are queued and published on the ROS2 executor thread
 via a timer, keeping thread-safety clean.
 
 Lifecycle transitions:
-  configure  → resolve USB hub/port, power on, open device, configure SDK, create publisher
-  activate   → start scan thread and drain timer (re-init SDK after power-cycle if needed)
-  deactivate → stop scan thread, turn off motor, disconnect SDK, cut USB power
+  configure  → open device, configure SDK, create publisher
+  activate   → start scan thread and drain timer
+  deactivate → stop scan thread, turn off motor
   cleanup / shutdown → disconnect device
 """
 
 import math
-import os
 import queue
-import re
-import subprocess
 import sys
 import threading
-import time
 
 # YDLidar SDK installs its Python bindings here (cmake install, not pip)
 _YDLIDAR_DIST = "/usr/local/lib/python3/dist-packages"
@@ -46,68 +42,11 @@ class LidarNode(LifecycleNode):
 
         self._laser = None
         self._ydlidar = None
-        self._usb_hub: str | None = None   # uhubctl -l value, e.g. "1-1"
-        self._usb_port: int | None = None  # uhubctl -p value, e.g. 4
-        self._usb_off = False              # True when we cut power via uhubctl
         self._thread = None
         self._running = False
         self._scan_queue: queue.Queue = queue.Queue(maxsize=1)
         self._timer = None
         self._pub_scan = None
-
-    # ── USB power control ──────────────────────────────────────────────────
-
-    @staticmethod
-    def _find_usb_hub_port(dev: str) -> tuple[str | None, int | None]:
-        """Derive uhubctl hub location and port number from the device's udev path.
-
-        Parses the USB device component (e.g. "1-1.4") out of the kernel devpath
-        returned by udevadm, then splits it into hub ("1-1") and port (4).
-        """
-        try:
-            real = os.path.realpath(dev)
-            r = subprocess.run(
-                ["udevadm", "info", "--query=path", "--name", real],
-                capture_output=True, text=True, timeout=5,
-            )
-            devpath = r.stdout.strip()
-            # devpath: /devices/.../usb1/1-1/1-1.4/1-1.4:1.0/ttyUSB0/tty/ttyUSB0
-            m = re.search(r"/(\d+-[\d.]+)/\1:", devpath)
-            if not m:
-                return None, None
-            usb_dev = m.group(1)            # e.g. "1-1.4"
-            dot = usb_dev.rfind(".")
-            if dot == -1:
-                return None, None
-            return usb_dev[:dot], int(usb_dev[dot + 1:])   # ("1-1", 4)
-        except Exception:
-            return None, None
-
-    def _usb_power(self, action: str) -> bool:
-        """Switch the lidar's USB port on or off via uhubctl. action: 'on' or 'off'."""
-        if self._usb_hub is None:
-            return False
-        try:
-            r = subprocess.run(
-                [
-                    "sudo", "uhubctl",
-                    "-l", self._usb_hub,
-                    "-p", str(self._usb_port),
-                    "-a", action,
-                ],
-                capture_output=True, text=True, timeout=10,
-            )
-            if r.returncode != 0:
-                self.get_logger().warn(f"uhubctl {action} failed: {r.stderr.strip()}")
-                return False
-            self._usb_off = (action == "off")
-            self.get_logger().info(
-                f"USB hub {self._usb_hub} port {self._usb_port} powered {action}"
-            )
-            return True
-        except Exception as exc:
-            self.get_logger().warn(f"uhubctl {action} error: {exc}")
-            return False
 
     # ── SDK init helper ────────────────────────────────────────────────────
 
@@ -149,22 +88,6 @@ class LidarNode(LifecycleNode):
             self._ydlidar = ydlidar
             ydlidar.os_init()
 
-            port = self.get_parameter("port").value
-
-            # Resolve USB hub/port once; preserved across cleanup/re-configure cycles.
-            if self._usb_hub is None:
-                self._usb_hub, self._usb_port = self._find_usb_hub_port(port)
-                if self._usb_hub is None:
-                    self.get_logger().warn(
-                        "Could not resolve YDLidar USB hub/port — uhubctl will be skipped"
-                    )
-
-            # Power on is idempotent; only wait for re-enumeration if we cut power earlier.
-            was_off = self._usb_off
-            self._usb_power("on")
-            if was_off:
-                time.sleep(2.0)
-
             if not self._init_laser():
                 return TransitionCallbackReturn.FAILURE
 
@@ -176,19 +99,10 @@ class LidarNode(LifecycleNode):
             return TransitionCallbackReturn.FAILURE
 
         self._pub_scan = self.create_publisher(LaserScan, "/gogopi/lidar/scan", 10)
-        self.get_logger().info(
-            f"YDLidar configured on {port} (USB hub {self._usb_hub} port {self._usb_port})"
-        )
+        self.get_logger().info(f"YDLidar configured on {self.get_parameter('port').value}")
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
-        if self._laser is None:
-            # Re-activating after a deactivation that cut USB power.
-            self._usb_power("on")
-            time.sleep(2.0)     # wait for USB re-enumeration and udev symlink
-            if not self._init_laser():
-                return TransitionCallbackReturn.FAILURE
-
         if not self._laser.turnOn():
             self.get_logger().error("YDLidar turnOn() failed")
             return TransitionCallbackReturn.FAILURE
@@ -213,8 +127,6 @@ class LidarNode(LifecycleNode):
         if self._thread:
             self._thread.join(timeout=3.0)
             self._thread = None
-        self._disconnect()      # release serial port before cutting power
-        self._usb_power("off")
         return super().on_deactivate(state)
 
     def on_cleanup(self, state: State) -> TransitionCallbackReturn:

@@ -38,9 +38,6 @@ sudo dpkg -i packaging/gogopi-services_*.deb
 # Remove the package
 sudo dpkg -r gogopi-services
 
-# ROS2 system prerequisites (run once as root — installs uhubctl + sudoers rule)
-sudo ros2/setup_system.sh
-
 # ROS2 apt packages (beyond ros-jazzy-ros-base, install once)
 sudo apt install \
     ros-jazzy-ros2lifecycle \              # ros2 lifecycle CLI (set/get node states)
