@@ -211,15 +211,23 @@ def check_hardware_reads(pigpio_ok: bool, expansion_ok: bool, sonar_ok: bool, th
             Board.initialize()
             raw = Board.getBattery()
             Board.cleanup()
-            _row(OK, "battery ADC  (raw counts)", str(raw))
+            v = raw / 1000.0
+            if v >= 7.8:
+                icon, note = OK, f"{v:.2f} V  (good)"
+            elif v >= 7.2:
+                icon, note = SKIP, f"{v:.2f} V  (moderate — consider charging)"
+            else:
+                icon, note = BAD, f"{v:.2f} V  (low — charge now)"
+                _fail("battery low", ["Charge the battery before extended use"])
+            _row(icon, "battery", note)
         except Exception as exc:
-            _row(BAD, "battery ADC  (raw counts)", str(exc))
-            _fail("battery ADC read failed", [
+            _row(BAD, "battery", str(exc))
+            _fail("battery read failed", [
                 "Verify I2C 0x7A      :  i2cdetect -y 1  (look for 7a)",
                 "Verify pigpiod       :  systemctl status pigpiod",
             ])
     else:
-        _row(SKIP, "battery ADC  (raw counts)", "pigpiod or I2C 0x7A unavailable")
+        _row(SKIP, "battery", "pigpiod or I2C 0x7A unavailable")
 
     if sonar_ok:
         try:

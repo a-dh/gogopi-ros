@@ -71,10 +71,12 @@ if ros_running:
 else:
     ros_str = "#[fg=red]board: off#[default]"
 
-# Battery — raw ADC; '--' when I2C unavailable
+# Battery — millivolts → volts with 2S LiPo thresholds
 if bat is None:
     bat_str = "#[fg=colour240]BAT --#[default]"
 else:
-    bat_str = f"#[fg=yellow]BAT {bat}#[default]"
+    v = bat / 1000.0
+    color = "green" if v >= 7.8 else ("yellow" if v >= 7.2 else "red")
+    bat_str = f"#[fg={color}]BAT {v:.2f}V#[default]"
 
 print(" " + SEP.join([hw_str, ros_str, bat_str]) + " ")
