@@ -111,6 +111,7 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 | `sonar_node` | `sonar_node` | I2C 0x77 |
 | `thermal_node` | `thermal_node` | I2C 0x33 (MLX90640) |
 | `lidar_node` | `lidar_node` | `/dev/ydlidar` (YDLidar TX8, USB-serial) |
+| `robot_state_publisher` | `robot_state_publisher` | URDF (`gogopi.urdf`), `/gogopi/servo_state` → TF tree |
 
 ### board_node — `gogopi_bringup/board_node.py`
 
