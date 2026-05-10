@@ -225,7 +225,7 @@ def getKey2():
     return pi.read(KEY2_PIN) == 0
 
 
-def test_drive(speed=30, duration=1.0):
+def test_drive(speed=60, duration=1.0):
     """
     Drive test: forward → stop → reverse → stop.
     Runs motors 1 (left) and 2 (right) at ±speed% for duration seconds each.
