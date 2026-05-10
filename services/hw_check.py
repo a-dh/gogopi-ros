@@ -12,6 +12,11 @@ _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO not in sys.path:
     sys.path.insert(0, _REPO)
 
+# YDLidar SDK installs its Python bindings here (cmake install, not pip)
+_YDLIDAR_DIST = "/usr/local/lib/python3/dist-packages"
+if _YDLIDAR_DIST not in sys.path:
+    sys.path.append(_YDLIDAR_DIST)
+
 # ── ANSI ──────────────────────────────────────────────────────────────────────
 _R = "\033[31m"
 _G = "\033[32m"
@@ -51,6 +56,11 @@ def _svc_result(name: str) -> str:
         if line.startswith("Result="):
             return line.split("=", 1)[1].strip()
     return ""
+
+
+def _lidar_node_running() -> bool:
+    r = subprocess.run(["pgrep", "-f", "lidar_node"], capture_output=True)
+    return r.returncode == 0
 
 
 def _thermal_node_running() -> bool:
@@ -272,6 +282,85 @@ def check_hardware_reads(pigpio_ok: bool, expansion_ok: bool, sonar_ok: bool, th
         _row(SKIP, "MLX90640 thermal  (read)", "I2C 0x33 unavailable")
 
 
+def check_lidar() -> None:
+    print(f"\n{_B}  LiDAR (YDLidar TX){_N}")
+
+    port = "/dev/ydlidar"
+
+    # serial device present
+    device_ok = os.path.exists(port)
+    _row(OK if device_ok else BAD, f"serial device  {port}")
+    if not device_ok:
+        _fail(f"LiDAR serial device {port!r} not found", [
+            "Check udev rule      :  ls -la /dev/ydlidar",
+            "Check USB cable      :  lsusb | grep -i serial",
+            "Plug in the LiDAR and retry",
+        ])
+
+    # dialout group (serial port access)
+    try:
+        import grp as _grp, pwd as _pwd
+        user = os.environ.get("USER") or _pwd.getpwuid(os.getuid()).pw_name
+        user_groups = [g.gr_name for g in _grp.getgrall() if user in g.gr_mem]
+        in_dialout = "dialout" in user_groups
+        _row(OK if in_dialout else BAD, "user in 'dialout' group")
+        if not in_dialout:
+            _fail("user not in 'dialout' group (serial access denied)", [
+                f"Fix  :  sudo usermod -aG dialout {user}  (then log out / in)",
+            ])
+    except Exception as exc:
+        _row(BAD, "dialout group check", str(exc))
+
+    # ydlidar package (path injected at module top)
+    _ydlidar = None
+    ydlidar_ok = False
+    try:
+        import ydlidar as _ydlidar
+        ydlidar_ok = True
+        _row(OK, "ydlidar Python package")
+    except ImportError as exc:
+        _row(BAD, "ydlidar Python package", str(exc))
+        _fail("ydlidar package not installed", [
+            "Build and install YDLidar-SDK  :  see CLAUDE.md prerequisites",
+        ])
+
+    # SDK probe — initialize only (no turnOn / no motor spin)
+    if device_ok and ydlidar_ok:
+        if _lidar_node_running():
+            _row(OK, "YDLidar SDK probe", "skipped — lidar_node active")
+        else:
+            try:
+                _ydlidar.os_init()
+                laser = _ydlidar.CYdLidar()
+                laser.setlidaropt(_ydlidar.LidarPropSerialPort,          port)
+                laser.setlidaropt(_ydlidar.LidarPropSerialBaudrate,      115200)
+                laser.setlidaropt(_ydlidar.LidarPropLidarType,           _ydlidar.TYPE_TRIANGLE)
+                laser.setlidaropt(_ydlidar.LidarPropDeviceType,          _ydlidar.YDLIDAR_TYPE_SERIAL)
+                laser.setlidaropt(_ydlidar.LidarPropSingleChannel,       True)
+                laser.setlidaropt(_ydlidar.LidarPropSupportMotorDtrCtrl, True)
+                ok = laser.initialize()
+                laser.disconnecting()
+                if ok:
+                    _row(OK, "YDLidar SDK probe  (initialize)")
+                else:
+                    _row(BAD, "YDLidar SDK probe  (initialize failed)")
+                    _fail("YDLidar initialize() failed", [
+                        f"Check device   :  ls -la {port}",
+                        "Check power    :  LiDAR needs 5 V supply",
+                        "Check baud     :  TX series uses 115200",
+                    ])
+            except Exception as exc:
+                _row(BAD, "YDLidar SDK probe", str(exc))
+                _fail("YDLidar SDK probe failed", [
+                    f"Check device   :  ls -la {port}",
+                    "Check power    :  LiDAR needs 5 V supply",
+                ])
+    elif not device_ok:
+        _row(SKIP, "YDLidar SDK probe", "serial device absent")
+    else:
+        _row(SKIP, "YDLidar SDK probe", "ydlidar package missing")
+
+
 def check_ros2() -> None:
     print(f"\n{_B}  ROS2{_N}")
     ws = "/home/albertd/gopiros2/ros2"
@@ -310,6 +399,7 @@ def main() -> None:
     thermal_ok   = i2c.get((1, 0x33), False)
     check_hardware_reads(pigpio_ok, expansion_ok, sonar_ok, thermal_ok)
 
+    check_lidar()
     check_ros2()
 
     # ── summary ───────────────────────────────────────────────────────────────

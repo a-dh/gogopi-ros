@@ -38,6 +38,15 @@ sudo dpkg -i packaging/gogopi-services_*.deb
 # Remove the package
 sudo dpkg -r gogopi-services
 
+# YDLidar SDK — build and install once (system-wide prerequisite for lidar_node)
+# Source: https://github.com/YDLIDAR/YDLidar-SDK  (currently at tag V1.2.7)
+# Installs libydlidar_sdk.a + Python bindings to /usr/local/lib/python3/dist-packages/
+git clone https://github.com/YDLIDAR/YDLidar-SDK.git ~/YDLidar-SDK
+cd ~/YDLidar-SDK && mkdir build && cd build
+cmake .. && make -j4
+sudo make install
+cd -
+
 # Required system daemons (must be running before any SDK or ROS2 node use)
 sudo systemctl start pigpiod
 sudo systemctl start rpi-led-proxy     # WS281x LED daemon

@@ -14,7 +14,13 @@ Lifecycle transitions:
 
 import math
 import queue
+import sys
 import threading
+
+# YDLidar SDK installs its Python bindings here (cmake install, not pip)
+_YDLIDAR_DIST = "/usr/local/lib/python3/dist-packages"
+if _YDLIDAR_DIST not in sys.path:
+    sys.path.append(_YDLIDAR_DIST)
 
 import rclpy
 from rclpy.executors import ExternalShutdownException
