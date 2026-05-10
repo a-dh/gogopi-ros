@@ -17,6 +17,54 @@ KEY1_PIN = 13  # BCM GPIO 13 / BOARD pin 33
 KEY2_PIN = 23  # BCM GPIO 23 / BOARD pin 16
 HOLD_COUNTS = 40  # 40 × 50 ms = 2 s
 
+BAT_CHECK_INTERVAL = 600   # seconds between battery readings
+BAT_WARN_V         = 7.2   # 2S LiPo: warn below this (3.6 V/cell)
+BAT_SHUTDOWN_V     = 6.8   # 2S LiPo: shutdown below this (3.4 V/cell)
+BAT_MIN_PLAUSIBLE  = 5.5   # below this → no battery (USB-powered), skip monitoring
+
+
+def _battery_volts():
+    try:
+        from smbus2 import SMBus, i2c_msg
+        with SMBus(1) as bus:
+            w = i2c_msg.write(0x7A, [0])
+            r = i2c_msg.read(0x7A, 2)
+            bus.i2c_rdwr(w, r)
+            d = list(r)
+            return (d[0] | (d[1] << 8)) / 1000.0
+    except Exception:
+        return None
+
+
+def battery_check(log):
+    v = _battery_volts()
+    if v is None:
+        log.warning("Battery read failed (I2C error)")
+        return
+    if v < BAT_MIN_PLAUSIBLE:
+        log.info("Battery: %.2fV — no battery detected, USB-powered", v)
+        return
+    if v < BAT_SHUTDOWN_V:
+        msg = (
+            f"\n*** BATTERY CRITICAL: {v:.2f} V ***\n"
+            f"System is shutting down NOW.\n"
+            f"UNPLUG THE BATTERY after poweroff to prevent damage.\n"
+        )
+        log.error("Battery critical: %.2fV — initiating shutdown", v)
+        subprocess.call(["wall", msg])
+        time.sleep(3)
+        do_shutdown(log)
+    elif v < BAT_WARN_V:
+        msg = (
+            f"\n*** Battery low: {v:.2f} V ***\n"
+            f"Please save work and shut down soon.\n"
+            f"Remember to UNPLUG THE BATTERY after poweroff.\n"
+        )
+        log.warning("Battery low: %.2fV — wall warning sent", v)
+        subprocess.call(["wall", msg])
+    else:
+        log.info("Battery: %.2fV", v)
+
 
 def setup_logging():
     log = logging.getLogger("hw_button_scan")
@@ -71,8 +119,14 @@ if __name__ == "__main__":
     key1_pressed = False
     key2_pressed = False
     count = 0
+    last_bat_check = 0.0  # trigger an immediate check on first iteration
 
     while True:
+        now = time.monotonic()
+        if now - last_bat_check >= BAT_CHECK_INTERVAL:
+            battery_check(logger)
+            last_bat_check = now
+
         if pi.read(KEY1_PIN) == 0:
             time.sleep(0.05)
             if pi.read(KEY1_PIN) == 0:
