@@ -8,6 +8,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RVIZ_CONF="$SCRIPT_DIR/rviz2_conf/default.rviz"
 URDF="$SCRIPT_DIR/../ros2/src/gogopi_bringup/urdf/gogopi.urdf"
+FASTDDS_CONF="$SCRIPT_DIR/fastdds_tailscale.xml"
 
 xhost +local:docker 2>/dev/null || true
 
@@ -20,4 +21,6 @@ docker run --rm -it \
   --volume /tmp/.X11-unix:/tmp/.X11-unix \
   --volume "$RVIZ_CONF":/config/default.rviz \
   --volume "$URDF":/config/gogopi.urdf:ro \
+  --volume "$FASTDDS_CONF":/config/fastdds_tailscale.xml:ro \
+  --env FASTRTPS_DEFAULT_PROFILES_FILE=/config/fastdds_tailscale.xml \
   gopiros2-rviz
