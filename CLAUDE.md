@@ -134,6 +134,20 @@ Both nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured
 | `/gogopi/sonar/pixels` | `gogopi_msgs/PixelArray` | SUB |
 | `/gogopi/sonar/rgb_mode` | `std_msgs/UInt8` | SUB |
 
+### lidar_node — `gogopi_bringup/lidar_node.py`
+
+YDLidar TX8 (TOF LIDAR, single-channel, DTR motor control, 4–8 Hz scan, 0.1–8 m range). `on_configure` opens the serial device and calls `initialize()`. `on_activate` calls `turnOn()` and starts a background scan thread + drain timer. `on_deactivate` calls `turnOff()` and joins the thread.
+
+Serial device: **`/dev/ydlidar`** (udev rule — do not use `/dev/ttyUSBx` directly).
+
+| Topic | Type | Direction |
+|---|---|---|
+| `/gogopi/lidar/scan` | `sensor_msgs/LaserScan` | PUB ~7 Hz |
+
+Key parameters (all have defaults): `port` (`/dev/ydlidar`), `baudrate` (115200), `frame_id` (`lidar_link`), `scan_hz` (7.0, valid 4–8), `range_min` (0.1 m), `range_max` (8.0 m), `single_channel` (true), `motor_dtr_ctrl` (true).
+
+Published scan is a 360-bin uniform grid (1°/bin) over −π … +π. Bins with no return are `inf`.
+
 ## Services and WiFi/power semantics
 
 **hw_button_scan** (systemd service, uses pigpiod):

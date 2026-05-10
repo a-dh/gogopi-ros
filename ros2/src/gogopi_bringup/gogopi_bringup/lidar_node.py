@@ -31,12 +31,12 @@ from sensor_msgs.msg import LaserScan
 class LidarNode(LifecycleNode):
     def __init__(self):
         super().__init__("lidar_node")
-        self.declare_parameter("port", "/dev/ttyUSB0")
+        self.declare_parameter("port", "/dev/ydlidar")
         self.declare_parameter("baudrate", 115200)
         self.declare_parameter("frame_id", "lidar_link")
         self.declare_parameter("scan_hz", 7.0)
         self.declare_parameter("range_min", 0.1)
-        self.declare_parameter("range_max", 12.0)
+        self.declare_parameter("range_max", 8.0)
         self.declare_parameter("single_channel", True)
         self.declare_parameter("motor_dtr_ctrl", True)
 
@@ -65,10 +65,10 @@ class LidarNode(LifecycleNode):
 
             self._laser.setlidaropt(ydlidar.LidarPropSerialPort,     port)
             self._laser.setlidaropt(ydlidar.LidarPropSerialBaudrate,  baud)
-            self._laser.setlidaropt(ydlidar.LidarPropLidarType,       ydlidar.TYPE_TRIANGLE)
+            self._laser.setlidaropt(ydlidar.LidarPropLidarType,       ydlidar.TYPE_TOF)
             self._laser.setlidaropt(ydlidar.LidarPropDeviceType,      ydlidar.YDLIDAR_TYPE_SERIAL)
             self._laser.setlidaropt(ydlidar.LidarPropScanFrequency,   scan_hz)
-            self._laser.setlidaropt(ydlidar.LidarPropSampleRate,      3)
+            self._laser.setlidaropt(ydlidar.LidarPropSampleRate,      4)
             self._laser.setlidaropt(ydlidar.LidarPropMaxRange,        rng_max)
             self._laser.setlidaropt(ydlidar.LidarPropMinRange,        rng_min)
             self._laser.setlidaropt(ydlidar.LidarPropMaxAngle,        180.0)

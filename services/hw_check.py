@@ -334,7 +334,7 @@ def check_lidar() -> None:
                 laser = _ydlidar.CYdLidar()
                 laser.setlidaropt(_ydlidar.LidarPropSerialPort,          port)
                 laser.setlidaropt(_ydlidar.LidarPropSerialBaudrate,      115200)
-                laser.setlidaropt(_ydlidar.LidarPropLidarType,           _ydlidar.TYPE_TRIANGLE)
+                laser.setlidaropt(_ydlidar.LidarPropLidarType,           _ydlidar.TYPE_TOF)
                 laser.setlidaropt(_ydlidar.LidarPropDeviceType,          _ydlidar.YDLIDAR_TYPE_SERIAL)
                 laser.setlidaropt(_ydlidar.LidarPropSingleChannel,       True)
                 laser.setlidaropt(_ydlidar.LidarPropSupportMotorDtrCtrl, True)
