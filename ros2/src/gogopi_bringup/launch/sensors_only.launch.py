@@ -10,7 +10,7 @@ def generate_launch_description():
         DeclareLaunchArgument("camera_device", default_value="/dev/video0"),
         DeclareLaunchArgument("camera_frame_id", default_value="camera_link"),
         DeclareLaunchArgument("thermal_frame_id", default_value="thermal_camera_link"),
-        DeclareLaunchArgument("thermal_refresh_hz", default_value="4.0"),
+        DeclareLaunchArgument("thermal_refresh_hz", default_value="1.0"),
 
         LifecycleNode(
             package="gogopi_bringup",
@@ -45,7 +45,7 @@ def generate_launch_description():
             parameters=[{
                 "frame_id": LaunchConfiguration("thermal_frame_id"),
                 "refresh_hz": LaunchConfiguration("thermal_refresh_hz"),
-                "refresh_rate": "REFRESH_8_HZ",
+                "refresh_rate": "REFRESH_2_HZ",
                 "image_rotation": 0,
             }],
         ),

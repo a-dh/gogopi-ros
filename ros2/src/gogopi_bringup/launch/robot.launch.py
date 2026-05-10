@@ -54,8 +54,8 @@ def generate_launch_description():
             output="screen",
             parameters=[{
                 "frame_id": "thermal_camera_link",
-                "refresh_hz": 4.0,
-                "refresh_rate": "REFRESH_8_HZ",
+                "refresh_hz": 1.0,
+                "refresh_rate": "REFRESH_2_HZ",
                 "image_rotation": 0,
             }],
         ),
