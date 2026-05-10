@@ -6,7 +6,7 @@ Wants=haveged.service
 
 [Service]
 Type=simple
-Restart=always
+Restart=on-failure
 RestartSec=5
 ExecStart=/opt/gogopi/venv/bin/python3 /opt/gogopi/services/hw_wifi.py
 
