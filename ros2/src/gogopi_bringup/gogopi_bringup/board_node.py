@@ -38,6 +38,7 @@ class BoardNode(LifecycleNode):
         self._timers = []
         self._Board = None
         self._active = False
+        self._last_servo_angle_deg: dict[int, float] = {}
 
     # ── lifecycle callbacks ────────────────────────────────────────────────
 
@@ -203,13 +204,20 @@ class BoardNode(LifecycleNode):
             return
         joint_to_servo = {'tilt_joint': 1, 'pan_joint': 2}
         for name, pos in zip(msg.name, msg.position):
-            if name in joint_to_servo:
-                cmd = ServoCommand()
-                cmd.servo_id = joint_to_servo[name]
-                cmd.use_pulse = False
-                cmd.angle_deg = 90.0 - math.degrees(pos)
-                cmd.move_time_ms = 0
-                self._apply_servo(cmd)
+            if name not in joint_to_servo:
+                continue
+            sid = joint_to_servo[name]
+            angle = 90.0 - math.degrees(pos)
+            last = self._last_servo_angle_deg.get(sid)
+            if last is not None and abs(angle - last) < 1.0:
+                continue
+            self._last_servo_angle_deg[sid] = angle
+            cmd = ServoCommand()
+            cmd.servo_id = sid
+            cmd.use_pulse = False
+            cmd.angle_deg = angle
+            cmd.move_time_ms = 0
+            self._apply_servo(cmd)
 
     # ── service callbacks ──────────────────────────────────────────────────
 
