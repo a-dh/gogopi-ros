@@ -130,6 +130,7 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 | `/gogopi/buzzer` | `std_msgs/Bool` | SUB |
 | `/gogopi/led1` / `led2` | `std_msgs/Bool` | SUB |
 | `/gogopi/battery_raw` | `std_msgs/UInt16` | PUB 2 Hz |
+| `/gogopi/battery_voltage` | `std_msgs/Float32` | PUB 2 Hz (volts, confirmed 1 mV/count) |
 | `/gogopi/buttons` | `sensor_msgs/Joy` | PUB 50 Hz |
 | `/gogopi/servo_state` | `sensor_msgs/JointState` | PUB 10 Hz |
 | `/gogopi/motor_state` | `std_msgs/Float32MultiArray` | PUB 10 Hz |
@@ -139,7 +140,7 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 
 `cmd_vel` kinematic conversion: `left = v − ω·d/2`, `right = v + ω·d/2`, scaled by `max_speed_pct`. Parameters: `wheel_separation_m` (default 0.15), `max_speed_pct` (default 80).
 
-`battery_raw` publishes raw ADC counts — voltage conversion factor is undocumented and must be measured before using `sensor_msgs/BatteryState`.
+`battery_raw` publishes raw ADC counts; `battery_voltage` publishes the same value divided by 1000 (confirmed 1 mV/count).
 
 ### sonar_node — `gogopi_bringup/sonar_node.py`
 

@@ -19,7 +19,7 @@ from geometry_msgs.msg import Twist
 from gogopi_msgs.msg import PixelArray, ServoCommand
 from gogopi_msgs.srv import SetServo
 from sensor_msgs.msg import Joy, JointState
-from std_msgs.msg import Bool, Float32MultiArray, Int16MultiArray, UInt16
+from std_msgs.msg import Bool, Float32, Float32MultiArray, Int16MultiArray, UInt16
 from std_srvs.srv import SetBool, Trigger
 
 
@@ -58,6 +58,7 @@ class BoardNode(LifecycleNode):
 
         # publishers
         self._pub_battery = self.create_publisher(UInt16, "/gogopi/battery_raw", 10)
+        self._pub_battery_voltage = self.create_publisher(Float32, "/gogopi/battery_voltage", 10)
         self._pub_buttons = self.create_publisher(Joy, "/gogopi/buttons", 10)
         self._pub_servo_state = self.create_publisher(JointState, "/gogopi/servo_state", 10)
         self._pub_motor_state = self.create_publisher(Float32MultiArray, "/gogopi/motor_state", 10)
@@ -121,9 +122,13 @@ class BoardNode(LifecycleNode):
     # ── publish callbacks ──────────────────────────────────────────────────
 
     def _publish_battery(self):
+        raw = self._Board.getBattery()
         msg = UInt16()
-        msg.data = self._Board.getBattery()
+        msg.data = raw
         self._pub_battery.publish(msg)
+        v_msg = Float32()
+        v_msg.data = raw / 1000.0
+        self._pub_battery_voltage.publish(v_msg)
 
     def _publish_buttons(self):
         msg = Joy()
