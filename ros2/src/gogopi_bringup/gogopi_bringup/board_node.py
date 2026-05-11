@@ -202,12 +202,16 @@ class BoardNode(LifecycleNode):
     def _cb_joint_states(self, msg: JointState):
         if not self._active:
             return
-        joint_to_servo = {'tilt_joint': 1, 'pan_joint': 2}
+        # Inverse of _publish_state: tilt pos = radians(90-angle), pan pos = radians(angle-90)
+        joint_to_servo = {
+            'tilt_joint': (1, lambda p: 90.0 - math.degrees(p)),
+            'pan_joint':  (2, lambda p: 90.0 + math.degrees(p)),
+        }
         for name, pos in zip(msg.name, msg.position):
             if name not in joint_to_servo:
                 continue
-            sid = joint_to_servo[name]
-            angle = 90.0 - math.degrees(pos)
+            sid, to_angle = joint_to_servo[name]
+            angle = to_angle(pos)
             last = self._last_servo_angle_deg.get(sid)
             if last is not None and abs(angle - last) < 1.0:
                 continue
