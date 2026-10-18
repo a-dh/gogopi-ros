@@ -81,24 +81,34 @@ ROS service: `/gogopi/set_servo`  (SetServo srv)
 
 ## Session control
 
+`gprctl` (repo root) runs every node in its own window of one tmux session, then configures + activates them all — no manual `ros2 lifecycle set` needed.
+
 ```
-./gprctl             # start tmux session (all nodes)
-./gprctl stop        # kill session
-./gprctl hwhealth    # hardware health check
+./gprctl [name]        # (re)start tmux session (default name: gopiros2) and attach
+./gprctl stop [name]   # kill the session (stops all nodes)
+./gprctl hwhealth      # hardware health check only (services/hw_check.py)
 ```
+
+- Starting always kills any existing session of that name first, so `./gprctl` = restart everything.
+- Each window sources ROS2 + the workspace, sets `PYTHONPATH`, the Tailscale FastDDS profile and `ROS_DOMAIN_ID=0`.
+- Sensor windows probe their hardware first (I2C 0x77 / 0x33, `/dev/video0`, `/dev/ttyUSB0`) and print a WARNING if it's missing; that node then fails to configure, and the others carry on.
+- The `shell` window waits ~4 s, then sends configure → activate to every node.
+- Status bar (right side) refreshes every 5 s from `services/tmux_status.py`.
+- Reattach after detaching: `tmux attach -t gopiros2`.
 
 ### tmux windows
 | # | Name | Contents |
 |---|---|---|
 | 0 | daemons | hardware health check |
 | 1 | urdf | robot_state_publisher |
-| 2 | board | board_node |
+| 2 | board | board_node (selected on attach) |
 | 3 | sonar | sonar_node |
 | 4 | thermal | thermal_node |
 | 5 | camera | camera_node |
-| 6 | shell | interactive shell + auto lifecycle |
+| 6 | lidar | lidar_node |
+| 7 | shell | interactive shell + auto lifecycle |
 
-`Ctrl-b <n>` switch window · `Ctrl-b d` detach · `Ctrl-b [` scroll
+`Ctrl-b <n>` switch window · `Ctrl-b d` detach · `Ctrl-b [` scroll (`q` exits)
 
 ---
 
