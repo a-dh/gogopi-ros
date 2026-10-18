@@ -5,6 +5,7 @@ KEY1 (BCM 13, BOARD 33) held ~2 s  →  WiFi factory reset
 KEY2 (BCM 23, BOARD 16) held ~2 s  →  safe shutdown
 Battery monitor: beep 0.25 s every minute while USB-powered (no battery);
 5 s buzz before any shutdown (button or battery critical).
+`touch /tmp/gogopi-mute` silences the USB beep (not the shutdown buzz); cleared on reboot.
 """
 
 import logging
@@ -22,6 +23,7 @@ HOLD_COUNTS = 40  # 40 × 50 ms = 2 s
 
 USB_BEEP_INTERVAL    = 60    # seconds between USB-power reminder beeps (and checks)
 USB_BEEP_S           = 0.25
+MUTE_FILE            = "/tmp/gogopi-mute"  # exists → skip the USB beep
 SHUTDOWN_BUZZ_S      = 5.0
 
 pi = None  # pigpio connection, set in __main__
@@ -86,7 +88,8 @@ def battery_check(log):
             log.info("Battery: %s — no battery detected, USB-powered", detail)
         _usb_powered = True
         _bat_critical_count = 0
-        buzz(USB_BEEP_S)
+        if not os.path.exists(MUTE_FILE):
+            buzz(USB_BEEP_S)
         return USB_BEEP_INTERVAL
     _usb_powered = False
     if v < BAT_SHUTDOWN_V:

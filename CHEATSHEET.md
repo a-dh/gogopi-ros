@@ -8,7 +8,7 @@ Unplug the battery once the Pi has shut down — the expansion board stays power
 | You hear | Meaning |
 |---|---|
 | **5 s buzz** | Shutting down now (KEY2, or battery critical). Buzzer stops, then `sync` + poweroff |
-| **Short beep (0.25 s) every minute** | USB power only — main board switch off / no battery. Motors and servos won't work |
+| **Short beep (0.25 s) every minute** | USB power only — main board switch off / no battery. Motors and servos won't work. Mute: `touch /tmp/gogopi-mute` (unmute: `rm /tmp/gogopi-mute`; reboot also unmutes) |
 | nothing | Battery present and OK (or `hw_button_scan` not running) |
 
 Battery monitor (`hw_button_scan`, 2S LiPo, 10 readings per check, median):
