@@ -49,7 +49,7 @@ journalctl -u hw_wifi -b          # hw_wifi log for this boot
 | Button | Action |
 |---|---|
 | **KEY1** — hold 2 s | Restart `hw_wifi` service (WiFi factory reset) |
-| **KEY2** — hold 2 s | Safe shutdown (`sync` + `poweroff`) |
+| **KEY2** — hold 2 s | Safe shutdown (`systemctl poweroff`) |
 
 ---
 

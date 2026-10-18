@@ -188,7 +188,7 @@ Published scan is a 360-bin uniform grid (1°/bin) over −π … +π. Bins with
 
 **hw_button_scan** (systemd service, uses pigpiod):
 - KEY1 (BCM 13) held 2 s → `systemctl restart hw_wifi.service` (WiFi factory reset)
-- KEY2 (BCM 23) held 2 s → `sync` + `sudo poweroff -f -p`
+- KEY2 (BCM 23) held 2 s → `systemctl poweroff`
 - Must start after `pigpiod.service` (declared in service file)
 
 **hw_wifi** (systemd service, uses pigpiod):
