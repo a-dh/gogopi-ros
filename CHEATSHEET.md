@@ -1,5 +1,13 @@
 # GoPiRos2 Quick Reference
 
+## Power off
+
+**Hold KEY2 for 2 s** → safe shutdown (`hw_button_scan` runs `systemctl poweroff`).
+From a shell: `sudo poweroff`.
+Unplug the battery once the Pi has shut down — the expansion board stays powered.
+
+---
+
 ## Network
 
 | | |
