@@ -3,6 +3,8 @@
 
 KEY1 (BCM 13, BOARD 33) held ~2 s  →  WiFi factory reset
 KEY2 (BCM 23, BOARD 16) held ~2 s  →  safe shutdown
+Battery monitor: beep 0.25 s every minute while USB-powered (no battery);
+5 s buzz before any shutdown (button or battery critical).
 """
 
 import logging
@@ -15,7 +17,14 @@ import pigpio
 
 KEY1_PIN = 13  # BCM GPIO 13 / BOARD pin 33
 KEY2_PIN = 23  # BCM GPIO 23 / BOARD pin 16
+BUZZER_PIN = 6  # BCM GPIO 6 / BOARD pin 31, active high
 HOLD_COUNTS = 40  # 40 × 50 ms = 2 s
+
+USB_BEEP_INTERVAL    = 60    # seconds between USB-power reminder beeps (and checks)
+USB_BEEP_S           = 0.25
+SHUTDOWN_BUZZ_S      = 5.0
+
+pi = None  # pigpio connection, set in __main__
 
 BAT_CHECK_INTERVAL   = 600   # seconds between battery checks
 BAT_RECHECK_INTERVAL = 30    # seconds to the confirming check after a critical one
@@ -28,6 +37,18 @@ BAT_MAX_SPREAD       = 0.3   # V; wider max−min → ADC floating (main board s
                              # off / USB only: readings swing ~4.5–7.5 V)
 
 _bat_critical_count = 0      # consecutive critical checks; shutdown needs 2
+_usb_powered = None          # last detected power source; log only on change
+
+
+def buzz(seconds):
+    """Sound the board buzzer for `seconds`; always leaves it off."""
+    if pi is None:
+        return
+    try:
+        pi.write(BUZZER_PIN, 1)
+        time.sleep(seconds)
+    finally:
+        pi.write(BUZZER_PIN, 0)
 
 
 def _battery_volts():
@@ -45,7 +66,7 @@ def _battery_volts():
 
 def battery_check(log):
     """Sample the battery ADC and act on it. Returns seconds until the next check."""
-    global _bat_critical_count
+    global _bat_critical_count, _usb_powered
     samples = []
     for _ in range(BAT_SAMPLES):
         v = _battery_volts()
@@ -61,9 +82,13 @@ def battery_check(log):
     spread = samples[-1] - samples[0]
     detail = f"median {v:.2f}V, range {samples[0]:.2f}–{samples[-1]:.2f}V"
     if v < BAT_MIN_PLAUSIBLE or spread > BAT_MAX_SPREAD:
-        log.info("Battery: %s — no battery detected, USB-powered", detail)
+        if _usb_powered is not True:
+            log.info("Battery: %s — no battery detected, USB-powered", detail)
+        _usb_powered = True
         _bat_critical_count = 0
-        return BAT_CHECK_INTERVAL
+        buzz(USB_BEEP_S)
+        return USB_BEEP_INTERVAL
+    _usb_powered = False
     if v < BAT_SHUTDOWN_V:
         _bat_critical_count += 1
         if _bat_critical_count < 2:
@@ -122,6 +147,8 @@ def reset_wifi(log):
 
 
 def do_shutdown(log):
+    log.info("Shutdown buzzer: %.0f s", SHUTDOWN_BUZZ_S)
+    buzz(SHUTDOWN_BUZZ_S)
     log.info("Syncing filesystems")
     run("sync", log)
     log.info("Issuing poweroff via systemctl")
@@ -141,6 +168,8 @@ if __name__ == "__main__":
     pi.set_mode(KEY2_PIN, pigpio.INPUT)
     pi.set_pull_up_down(KEY1_PIN, pigpio.PUD_UP)
     pi.set_pull_up_down(KEY2_PIN, pigpio.PUD_UP)
+    pi.set_mode(BUZZER_PIN, pigpio.OUTPUT)
+    pi.write(BUZZER_PIN, 0)
     logger.info("GPIO configured: KEY1=BCM%d KEY2=BCM%d", KEY1_PIN, KEY2_PIN)
 
     key1_pressed = False

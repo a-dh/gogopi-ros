@@ -6,6 +6,8 @@
 From a shell: `sudo poweroff`.
 Unplug the battery once the Pi has shut down — the expansion board stays powered.
 
+**Buzzer:** 5 s buzz = shutting down (KEY2 or battery < 6.8 V). Short beep every minute = running on USB only (main board switch off / no battery).
+
 ---
 
 ## Network
