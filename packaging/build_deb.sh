@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 # Build gogopi-services_X.Y.Z_all.deb
 # Run from any directory; requires dpkg-deb and SSH access to gratzi.
+# Must run ON THE ROBOT: the bundled venv is tied to the build host's
+# architecture and Python version (lib/python3.X), so an x86 build won't run on the Pi.
 set -euo pipefail
+
+if [ "$(uname -m)" != "aarch64" ]; then
+    echo "build_deb.sh: refusing to build on $(uname -m) — run it on the robot (aarch64)." >&2
+    echo "  e.g. ssh -A albertd@gopiros2.local 'cd ~/gopiros2 && git pull && ./packaging/build_deb.sh'" >&2
+    exit 1
+fi
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="$(grep '^version' "$REPO_ROOT/pyproject.toml" | grep -oP '[\d.]+')"
