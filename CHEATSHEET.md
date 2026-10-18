@@ -1,12 +1,26 @@
 # GoPiRos2 Quick Reference
 
-## Power off
+## Power, shutdown & buzzer
 
-**Hold KEY2 for 2 s** → safe shutdown (`hw_button_scan` runs `systemctl poweroff`).
-From a shell: `sudo poweroff`.
+**Hold KEY2 for 2 s** → safe shutdown. From a shell: `sudo poweroff`.
 Unplug the battery once the Pi has shut down — the expansion board stays powered.
 
-**Buzzer:** 5 s buzz = shutting down (KEY2 or battery < 6.8 V). Short beep every minute = running on USB only (main board switch off / no battery).
+| You hear | Meaning |
+|---|---|
+| **5 s buzz** | Shutting down now (KEY2, or battery critical). Buzzer stops, then `sync` + poweroff |
+| **Short beep (0.25 s) every minute** | USB power only — main board switch off / no battery. Motors and servos won't work |
+| nothing | Battery present and OK (or `hw_button_scan` not running) |
+
+Battery monitor (`hw_button_scan`, 2S LiPo, 10 readings per check, median):
+
+| Battery | Action |
+|---|---|
+| ≥ 7.2 V | OK — checked every 10 min |
+| < 7.2 V | `wall` warning to all terminals |
+| < 6.8 V | critical → re-check after 30 s → if still < 6.8 V: 5 s buzz + poweroff |
+| readings spread > 0.3 V or < 5.5 V | no battery (USB only) → beep, re-check every 60 s |
+
+Log: `journalctl -u hw_button_scan -b`
 
 ---
 
