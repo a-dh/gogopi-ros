@@ -211,10 +211,12 @@ Tmux windows:
 | 0 | daemons | hardware health check (read-only) |
 | 1 | urdf | `robot_state_publisher` |
 | 2 | board | `board_node` |
-| 3 | sonar | I2C probe at 0x77, then `sonar_node` |
-| 4 | thermal | I2C probe at 0x33, then `thermal_node` (MLX90640) |
-| 5 | camera | `/dev/video0` check, then `camera_node` |
+| 3 | thermal | I2C probe at 0x33, then `thermal_node` (MLX90640) |
+| 4 | camera | `/dev/video0` check, then `camera_node` |
+| 5 | lidar | `/dev/ydlidar` check, then `lidar_node` |
 | 6 | shell | configure + activate all nodes, then interactive |
+
+`sonar_node` is not started — the sonar module is not connected.
 
 The status bar (bottom of the tmux session) shows hardware health, ROS node states, and battery level, refreshed every 5 s.
 
