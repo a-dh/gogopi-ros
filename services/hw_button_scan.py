@@ -17,10 +17,17 @@ KEY1_PIN = 13  # BCM GPIO 13 / BOARD pin 33
 KEY2_PIN = 23  # BCM GPIO 23 / BOARD pin 16
 HOLD_COUNTS = 40  # 40 × 50 ms = 2 s
 
-BAT_CHECK_INTERVAL = 600   # seconds between battery readings
-BAT_WARN_V         = 7.2   # 2S LiPo: warn below this (3.6 V/cell)
-BAT_SHUTDOWN_V     = 6.8   # 2S LiPo: shutdown below this (3.4 V/cell)
-BAT_MIN_PLAUSIBLE  = 5.5   # below this → no battery (USB-powered), skip monitoring
+BAT_CHECK_INTERVAL   = 600   # seconds between battery checks
+BAT_RECHECK_INTERVAL = 30    # seconds to the confirming check after a critical one
+BAT_WARN_V           = 7.2   # 2S LiPo: warn below this (3.6 V/cell)
+BAT_SHUTDOWN_V       = 6.8   # 2S LiPo: shutdown below this (3.4 V/cell)
+BAT_MIN_PLAUSIBLE    = 5.5   # median below this → no battery (USB-powered)
+BAT_SAMPLES          = 10    # readings per check, BAT_SAMPLE_GAP s apart
+BAT_SAMPLE_GAP       = 0.1
+BAT_MAX_SPREAD       = 0.3   # V; wider max−min → ADC floating (main board switch
+                             # off / USB only: readings swing ~4.5–7.5 V)
+
+_bat_critical_count = 0      # consecutive critical checks; shutdown needs 2
 
 
 def _battery_volts():
@@ -37,33 +44,53 @@ def _battery_volts():
 
 
 def battery_check(log):
-    v = _battery_volts()
-    if v is None:
-        log.warning("Battery read failed (I2C error)")
-        return
-    if v < BAT_MIN_PLAUSIBLE:
-        log.info("Battery: %.2fV — no battery detected, USB-powered", v)
-        return
+    """Sample the battery ADC and act on it. Returns seconds until the next check."""
+    global _bat_critical_count
+    samples = []
+    for _ in range(BAT_SAMPLES):
+        v = _battery_volts()
+        if v is not None:
+            samples.append(v)
+        time.sleep(BAT_SAMPLE_GAP)
+    if len(samples) < BAT_SAMPLES // 2:
+        log.warning("Battery read failed (I2C error, %d/%d samples)", len(samples), BAT_SAMPLES)
+        _bat_critical_count = 0
+        return BAT_CHECK_INTERVAL
+    samples.sort()
+    v = samples[len(samples) // 2]
+    spread = samples[-1] - samples[0]
+    detail = f"median {v:.2f}V, range {samples[0]:.2f}–{samples[-1]:.2f}V"
+    if v < BAT_MIN_PLAUSIBLE or spread > BAT_MAX_SPREAD:
+        log.info("Battery: %s — no battery detected, USB-powered", detail)
+        _bat_critical_count = 0
+        return BAT_CHECK_INTERVAL
     if v < BAT_SHUTDOWN_V:
+        _bat_critical_count += 1
+        if _bat_critical_count < 2:
+            log.warning("Battery critical: %s — confirming in %d s", detail, BAT_RECHECK_INTERVAL)
+            return BAT_RECHECK_INTERVAL
         msg = (
             f"\n*** BATTERY CRITICAL: {v:.2f} V ***\n"
             f"System is shutting down NOW.\n"
             f"UNPLUG THE BATTERY after poweroff to prevent damage.\n"
         )
-        log.error("Battery critical: %.2fV — initiating shutdown", v)
+        log.error("Battery critical: %s — initiating shutdown", detail)
         subprocess.call(["wall", msg])
         time.sleep(3)
         do_shutdown(log)
-    elif v < BAT_WARN_V:
+        return BAT_CHECK_INTERVAL
+    _bat_critical_count = 0
+    if v < BAT_WARN_V:
         msg = (
             f"\n*** Battery low: {v:.2f} V ***\n"
             f"Please save work and shut down soon.\n"
             f"Remember to UNPLUG THE BATTERY after poweroff.\n"
         )
-        log.warning("Battery low: %.2fV — wall warning sent", v)
+        log.warning("Battery low: %s — wall warning sent", detail)
         subprocess.call(["wall", msg])
     else:
-        log.info("Battery: %.2fV", v)
+        log.info("Battery: %s", detail)
+    return BAT_CHECK_INTERVAL
 
 
 def setup_logging():
@@ -119,13 +146,12 @@ if __name__ == "__main__":
     key1_pressed = False
     key2_pressed = False
     count = 0
-    last_bat_check = 0.0  # trigger an immediate check on first iteration
+    next_bat_check = 0.0  # trigger an immediate check on first iteration
 
     while True:
         now = time.monotonic()
-        if now - last_bat_check >= BAT_CHECK_INTERVAL:
-            battery_check(logger)
-            last_bat_check = now
+        if now >= next_bat_check:
+            next_bat_check = now + battery_check(logger)
 
         if pi.read(KEY1_PIN) == 0:
             time.sleep(0.05)

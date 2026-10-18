@@ -187,6 +187,7 @@ Published scan is a 360-bin uniform grid (1°/bin) over −π … +π. Bins with
 **hw_button_scan** (systemd service, uses pigpiod):
 - KEY1 (BCM 13) held 2 s → `systemctl restart hw_wifi.service` (WiFi factory reset)
 - KEY2 (BCM 23) held 2 s → `systemctl poweroff`
+- Battery check every 10 min: 10 ADC samples (0x7A), median. Spread > 0.3 V or median < 5.5 V → no battery (main board switch off / USB only — the ADC floats ~4.5–7.5 V). < 7.2 V → `wall` warning; < 6.8 V on two checks 30 s apart → poweroff
 - Must start after `pigpiod.service` (declared in service file)
 
 **hw_wifi** (systemd service, uses pigpiod):
