@@ -91,7 +91,7 @@ ROS service: `/gogopi/set_servo`  (SetServo srv)
 
 - Starting always kills any existing session of that name first, so `./gprctl` = restart everything.
 - Each window sources ROS2 + the workspace, sets `PYTHONPATH`, the Tailscale FastDDS profile and `ROS_DOMAIN_ID=0`.
-- Sensor windows probe their hardware first (I2C 0x77 / 0x33, `/dev/video0`, `/dev/ttyUSB0`) and print a WARNING if it's missing; that node then fails to configure, and the others carry on.
+- Sensor windows probe their hardware first (I2C 0x77 / 0x33, `/dev/video0`, `/dev/ydlidar`) and print a WARNING if it's missing; that node then fails to configure, and the others carry on.
 - The `shell` window waits ~4 s, then sends configure → activate to every node.
 - Status bar (right side) refreshes every 5 s from `services/tmux_status.py`.
 - Reattach after detaching: `tmux attach -t gopiros2`.

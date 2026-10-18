@@ -11,7 +11,8 @@
 #   3 sonar    — sonar_node with I2C probe check (0x77)
 #   4 thermal  — thermal_node with I2C probe check (MLX90640 at 0x33)
 #   5 camera   — camera_node with /dev/video0 check
-#   6 shell    — interactive shell, pre-sourced
+#   6 lidar    — lidar_node with /dev/ydlidar check
+#   7 shell    — interactive shell, auto configure+activate of all nodes
 
 REPO="/home/albertd/gopiros2"
 
@@ -69,11 +70,11 @@ tmux send-keys -t "$SESSION:camera" \
   || echo 'WARNING: /dev/video0 not found — camera_node will fail to configure') \
   && ros2 run gogopi_bringup camera_node" Enter
 
-# 6: lidar_node — check /dev/ttyUSB0 first, then start node
+# 6: lidar_node — check /dev/ydlidar first, then start node
 tmux new-window -t "$SESSION" -n "lidar"
 tmux send-keys -t "$SESSION:lidar" \
-  "$SETUP && (test -e /dev/ttyUSB0 && echo 'YDLidar found at /dev/ttyUSB0' \
-  || echo 'WARNING: /dev/ttyUSB0 not found — lidar_node will fail to configure') \
+  "$SETUP && (test -e /dev/ydlidar && echo 'YDLidar found at /dev/ydlidar' \
+  || echo 'WARNING: /dev/ydlidar not found — lidar_node will fail to configure') \
   && ros2 run gogopi_bringup lidar_node" Enter
 
 # 7: shell — configure+activate all nodes, then stay interactive
@@ -110,7 +111,7 @@ cat <<'EOF'
 │  Ctrl-b 3  sonar    — sonar_node (0x77 check+run)        │
 │  Ctrl-b 4  thermal  — thermal_node (MLX90640 check+run)  │
 │  Ctrl-b 5  camera   — camera_node (/dev/video0 check)    │
-│  Ctrl-b 6  lidar    — lidar_node (/dev/ttyUSB0 check)    │
+│  Ctrl-b 6  lidar    — lidar_node (/dev/ydlidar check)     │
 │  Ctrl-b 7  shell    — interactive shell, auto-lifecycle  │
 │                                                          │
 │  Ctrl-b d  detach   (session keeps running in bg)        │
