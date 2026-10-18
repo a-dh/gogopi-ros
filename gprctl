@@ -73,12 +73,13 @@ tmux send-keys -t "$SESSION:lidar" \
 
 # 6: shell — configure+activate every node, then stay interactive.
 # Each call has its own timeout and is separated by ';' so one failing node
-# doesn't stop the rest from coming up.
+# doesn't stop the rest from coming up. configure uses 'service call' because
+# it waits for the node to appear (shell startup can take >5 s on keychain lock).
 NODES="board_node thermal_node camera_node lidar_node"
 tmux new-window -t "$SESSION" -n "shell"
 tmux send-keys -t "$SESSION:shell" \
   "$SETUP && sleep 4 \
-  ; for n in $NODES; do timeout 10 ros2 lifecycle set /\$n configure; done \
+  ; for n in $NODES; do timeout 30 ros2 service call /\$n/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 1}}'; done \
   ; sleep 1 \
   ; for n in $NODES; do timeout 10 ros2 lifecycle set /\$n activate; done" Enter
 
