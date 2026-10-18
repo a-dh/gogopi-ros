@@ -112,7 +112,8 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 | Node | Executable | Key dependency |
 |---|---|---|
 | `board_node` | `board_node` | pigpiod, I2C 0x7A, rpi-led-proxy |
-| `sonar_node` | `sonar_node` | I2C 0x77 |
+| `sonar_node` | `sonar_node` | I2C 0x77 (hardware not connected; only in `sensors_only.launch.py`) |
+| `camera_node` | `camera_node` | `/dev/video0` (USB camera, OpenCV V4L2) |
 | `thermal_node` | `thermal_node` | I2C 0x33 (MLX90640) |
 | `lidar_node` | `lidar_node` | `/dev/ydlidar` (YDLidar TX8, USB-serial) |
 | `robot_state_publisher` | `robot_state_publisher` | URDF (`gogopi.urdf`), `/gogopi/servo_state` → TF tree |
@@ -144,6 +145,8 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 
 ### sonar_node — `gogopi_bringup/sonar_node.py`
 
+**Not started by `robot.launch.py`** — the sonar module is currently not connected. It is still launched by `sensors_only.launch.py`.
+
 `on_configure` creates `Sonar()` and sets RGB mode 0. `on_activate` starts 10 Hz range timer.
 
 | Topic | Type | Direction |
@@ -151,6 +154,18 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 | `/gogopi/sonar/range` | `sensor_msgs/Range` | PUB 10 Hz |
 | `/gogopi/sonar/pixels` | `gogopi_msgs/PixelArray` | SUB |
 | `/gogopi/sonar/rgb_mode` | `std_msgs/UInt8` | SUB |
+
+### camera_node — `gogopi_bringup/camera_node.py`
+
+USB camera via OpenCV (`python3-opencv`). `on_configure` opens the device with `cv2.CAP_V4L2` (forced, so GStreamer doesn't intercept the device path) and sets the resolution. `on_activate` starts the capture timer. `on_cleanup`/`on_shutdown` release the device.
+
+| Topic | Type | Direction |
+|---|---|---|
+| `/gogopi/camera/image_raw` | `sensor_msgs/Image` (`bgr8`) | PUB `image_hz` |
+
+Parameters: `camera_device` (`/dev/video0`), `frame_id` (`camera_link`), `image_width` (640), `image_height` (480), `image_hz` (15.0), `image_rotation` (0/90/180/270).
+
+Published with a plain rclpy publisher, so no `/compressed` topic exists on the robot by default. Image-transport plugins only hook into C++ `image_transport` publishers.
 
 ### lidar_node — `gogopi_bringup/lidar_node.py`
 
