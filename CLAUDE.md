@@ -127,6 +127,7 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 | `/gogopi/cmd_vel` | `geometry_msgs/Twist` | SUB → differential drive |
 | `/gogopi/motors_raw` | `std_msgs/Int16MultiArray` | SUB → direct per-motor |
 | `/gogopi/servo_cmd` | `gogopi_msgs/ServoCommand` | SUB |
+| `/joint_states` | `sensor_msgs/JointState` | SUB → `tilt_joint`/`pan_joint` servos (from `joint_state_publisher_gui` in the quattro RViz container) |
 | `/gogopi/board_pixels` | `gogopi_msgs/PixelArray` | SUB |
 | `/gogopi/buzzer` | `std_msgs/Bool` | SUB |
 | `/gogopi/led1` / `led2` | `std_msgs/Bool` | SUB |
@@ -140,6 +141,8 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 | `/gogopi/e_stop` | `std_srvs/Trigger` | SRV |
 
 `cmd_vel` kinematic conversion: `left = v − ω·d/2`, `right = v + ω·d/2`, scaled by `max_speed_pct`. Parameters: `wheel_separation_m` (default 0.15), `max_speed_pct` (default 80).
+
+`/joint_states` maps URDF joint positions (radians) to servo angles: `tilt_joint` → servo 1 at `90 − deg(pos)`, `pan_joint` → servo 2 at `90 + deg(pos)` (the inverse of what `/gogopi/servo_state` publishes). Changes under 1° per servo are ignored, so a steady stream of messages doesn't keep re-sending the same command. It's ignored while the node is inactive.
 
 `battery_raw` publishes raw ADC counts; `battery_voltage` publishes the same value divided by 1000 (confirmed 1 mV/count).
 
