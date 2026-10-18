@@ -18,6 +18,22 @@
 Place `hiwonder_wifi_conf.py` at `/etc/Hiwonder/` or `/boot/` to set client or AP mode.
 Remove the file (or hold KEY1) to reset to default AP.
 
+### Network checks
+No NetworkManager (`nmcli` is not installed). Networking is netplan/systemd-networkd, and `hw_wifi` drives hostapd/wpa_supplicant directly.
+
+```
+ip -br addr                       # interfaces + IPs at a glance
+networkctl status wlan0           # link state, addresses, gateway, DNS
+iw dev wlan0 link                 # associated SSID, signal, bitrate
+iw dev wlan0 info                 # mode: managed (client) or AP
+sudo wpa_cli -i wlan0 status      # client mode: wpa_state=COMPLETED when connected
+pgrep -a 'hostapd|dnsmasq|wpa_supplicant'   # which WiFi mode is running
+ip route                          # default gateway
+resolvectl status                 # DNS servers
+tailscale status                  # tailnet peers / connectivity
+journalctl -u hw_wifi -b          # hw_wifi log for this boot
+```
+
 ---
 
 ## Buttons
