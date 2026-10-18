@@ -103,6 +103,9 @@ tmux set-option -t "$SESSION" status-interval 5
 tmux set-option -t "$SESSION" status-right "#(python3 $REPO/services/tmux_status.py 2>/dev/null)"
 tmux set-option -t "$SESSION" status-right-length 60
 
+# mouse: wheel scrolls history (enters copy mode), click to switch windows
+tmux set-option -t "$SESSION" mouse on
+
 cat <<'EOF'
 ┌─ gopiros2 tmux session ──────────────────────────────────┐
 │  Ctrl-b 0  daemons  — hardware health check               │
@@ -116,6 +119,7 @@ cat <<'EOF'
 │                                                          │
 │  Ctrl-b d  detach   (session keeps running in bg)        │
 │  Ctrl-b [  scroll mode  (q to exit)                      │
+│  mouse wheel scrolls · Shift-drag selects text           │
 │  ./gprctl           restart everything                   │
 │  ./gprctl stop      kill the session                     │
 │  ./gprctl hwhealth  run hardware health check            │

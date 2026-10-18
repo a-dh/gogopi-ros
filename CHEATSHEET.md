@@ -110,6 +110,8 @@ ROS service: `/gogopi/set_servo`  (SetServo srv)
 
 `Ctrl-b <n>` switch window · `Ctrl-b d` detach · `Ctrl-b [` scroll (`q` exits)
 
+Mouse mode is on: wheel scrolls back through output (wheel down to the bottom or `q` to exit), click a window name to switch. Hold **Shift** while dragging to select/copy text with the terminal.
+
 ---
 
 ## Key services
