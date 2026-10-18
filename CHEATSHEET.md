@@ -91,7 +91,7 @@ ROS service: `/gogopi/set_servo`  (SetServo srv)
 
 - Starting always kills any existing session of that name first, so `./gprctl` = restart everything.
 - Each window sources ROS2 + the workspace, sets `PYTHONPATH`, the Tailscale FastDDS profile and `ROS_DOMAIN_ID=0`.
-- Sensor windows probe their hardware first (I2C 0x33, `/dev/video0`, `/dev/ydlidar`) and print a WARNING if it's missing; that node then fails to configure, and the others carry on.
+- Sensor windows probe their hardware first (I2C 0x77 / 0x33, `/dev/video0`, `/dev/ydlidar`) and print a WARNING if it's missing; that node then fails to configure, and the others carry on.
 - The `shell` window waits ~4 s, then sends configure → activate to every node; a node that fails doesn't block the others.
 - Status bar (right side) refreshes every 5 s from `services/tmux_status.py`.
 - Reattach after detaching: `tmux attach -t gopiros2`.
@@ -102,12 +102,11 @@ ROS service: `/gogopi/set_servo`  (SetServo srv)
 | 0 | daemons | hardware health check |
 | 1 | urdf | robot_state_publisher |
 | 2 | board | board_node (selected on attach) |
-| 3 | thermal | thermal_node |
-| 4 | camera | camera_node |
-| 5 | lidar | lidar_node |
-| 6 | shell | interactive shell + auto lifecycle |
-
-sonar_node is not started (module not connected).
+| 3 | sonar | sonar_node |
+| 4 | thermal | thermal_node |
+| 5 | camera | camera_node |
+| 6 | lidar | lidar_node |
+| 7 | shell | interactive shell + auto lifecycle |
 
 `Ctrl-b <n>` switch window · `Ctrl-b d` detach · `Ctrl-b [` scroll (`q` exits)
 

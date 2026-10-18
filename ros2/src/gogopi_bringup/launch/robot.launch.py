@@ -40,6 +40,17 @@ def generate_launch_description():
 
         LifecycleNode(
             package="gogopi_bringup",
+            executable="sonar_node",
+            name="sonar_node",
+            namespace="",
+            output="screen",
+            parameters=[{
+                "frame_id": "sonar_link",
+            }],
+        ),
+
+        LifecycleNode(
+            package="gogopi_bringup",
             executable="camera_node",
             name="camera_node",
             namespace="",

@@ -112,7 +112,7 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 | Node | Executable | Key dependency |
 |---|---|---|
 | `board_node` | `board_node` | pigpiod, I2C 0x7A, rpi-led-proxy |
-| `sonar_node` | `sonar_node` | I2C 0x77 (hardware not connected; only in `sensors_only.launch.py`) |
+| `sonar_node` | `sonar_node` | I2C 0x77 |
 | `camera_node` | `camera_node` | `/dev/video0` (USB camera, OpenCV V4L2) |
 | `thermal_node` | `thermal_node` | I2C 0x33 (MLX90640) |
 | `lidar_node` | `lidar_node` | `/dev/ydlidar` (YDLidar TX8, USB-serial) |
@@ -147,8 +147,6 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 `battery_raw` publishes raw ADC counts; `battery_voltage` publishes the same value divided by 1000 (confirmed 1 mV/count).
 
 ### sonar_node — `gogopi_bringup/sonar_node.py`
-
-**Not started by `robot.launch.py`** — the sonar module is currently not connected. It is still launched by `sensors_only.launch.py`.
 
 `on_configure` creates `Sonar()` and sets RGB mode 0. `on_activate` starts 10 Hz range timer.
 
