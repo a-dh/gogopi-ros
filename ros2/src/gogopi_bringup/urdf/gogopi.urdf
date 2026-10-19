@@ -342,12 +342,14 @@
     <origin xyz="0.0295 0 0.0965" rpy="0 0 3.14159"/>
   </joint>
 
-  <!-- Sonar: PLACEHOLDER — module not mounted yet. Front face of base, centreline,
-       mid-height. Measure and update once it's fixed to the robot. -->
+  <!-- Sonar: on the rear (outside) face of the sensor tower, facing backward,
+       100 mm above floor. floor = −0.0335 in base_link → z = 0.0665 in base_link
+       = 0.0355 in sensor_tower. x: rear face of the 2 mm tower plate (−0.001) plus
+       ~15 mm module depth (estimate) to the transducer faces. -->
   <joint name="sonar_joint" type="fixed">
-    <parent link="base_link"/>
+    <parent link="sensor_tower"/>
     <child link="sonar_link"/>
-    <origin xyz="0.0665 0 0.0155" rpy="0 0 0"/>
+    <origin xyz="-0.016 0 0.0355" rpy="0 0 3.14159"/>
   </joint>
 
 </robot>
