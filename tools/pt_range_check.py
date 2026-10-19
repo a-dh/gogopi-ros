@@ -19,6 +19,7 @@ fight the sweep. Point the camera at a scene with detail (not a blank wall).
     tools/pt_range_check.py baseline                 # scene texture + still-image noise
     tools/pt_range_check.py sweep --servo 1 --end low   # one direction (tilt down)
     tools/pt_range_check.py sweep                    # both servos, both ends
+    tools/pt_range_check.py sweep --servo 1 --end low --beep-at 14   # beep at 14° to watch
 
 Nothing is changed permanently: board_node's servo_min_deg/servo_max_deg are
 opened to 0–180 for the sweep and always restored afterwards.
@@ -37,6 +38,7 @@ from rclpy.executors import SingleThreadedExecutor
 from rcl_interfaces.msg import Parameter, ParameterType, ParameterValue
 from rcl_interfaces.srv import GetParameters, SetParameters
 from sensor_msgs.msg import Image
+from std_srvs.srv import SetBool
 from gogopi_msgs.msg import ServoCommand
 from gogopi_msgs.srv import SetServo
 
@@ -72,6 +74,7 @@ class Rig:
         self.set_servo = self._client(SetServo, "/gogopi/set_servo")
         self.get_params = self._client(GetParameters, "/board_node/get_parameters")
         self.set_params = self._client(SetParameters, "/board_node/set_parameters")
+        self.set_buzzer = self._client(SetBool, "/gogopi/set_buzzer")
 
     def _client(self, srv, name, timeout=10.0):
         c = self.node.create_client(srv, name)
@@ -112,6 +115,11 @@ class Rig:
     def servo(self, sid, angle):
         cmd = ServoCommand(servo_id=sid, use_pulse=False, angle_deg=int(round(angle)), move_time_ms=0)
         self.call(self.set_servo, SetServo.Request(command=cmd))
+
+    def beep(self, seconds=0.15):
+        self.call(self.set_buzzer, SetBool.Request(data=True))
+        time.sleep(seconds)
+        self.call(self.set_buzzer, SetBool.Request(data=False))
 
     def get_limits(self):
         res = self.call(self.get_params, GetParameters.Request(names=["servo_min_deg", "servo_max_deg"]))
@@ -189,7 +197,7 @@ def cmd_baseline(rig):
         time.sleep(SETTLE_S)
 
 
-def sweep_direction(rig, sid, target):
+def sweep_direction(rig, sid, target, beep_at=()):
     step = STEP_DEG if target > 90 else -STEP_DEG
     centre(rig, home_for(sid))
     print(f"\n{SERVOS[sid]} (servo {sid}) 90° → {target}°")
@@ -200,19 +208,22 @@ def sweep_direction(rig, sid, target):
     while (angle + step <= target) if step > 0 else (angle + step >= target):
         angle += step
         rig.servo(sid, angle)
+        if angle in beep_at:
+            rig.beep()
         t = time.monotonic()
         time.sleep(SETTLE_S)
         cur = rig.frame_after(t + SETTLE_S)
         dx, dy, resp = shift(prev, cur)
         prev = cur
         moved = float(np.hypot(dx, dy))
+        mark = "  ♪" if angle in beep_at else ""
         if resp < MIN_RESPONSE:
             print(f"  {angle:4d}°  shift {moved:5.2f} px  resp {resp:.2f}  ← low response, scene lost; stopping")
             rig.servo(sid, angle - step * (BACKOFF_DEG // STEP_DEG))
             return None, "scene lost"
         if len(shifts) < CALIBRATION_STEPS:
             shifts.append(moved)
-            print(f"  {angle:4d}°  shift {moved:5.2f} px  (calibrating)")
+            print(f"  {angle:4d}°  shift {moved:5.2f} px  (calibrating){mark}")
             if len(shifts) == CALIBRATION_STEPS and statistics.median(shifts) < MIN_STEP_PX:
                 # can't see normal steps → "no movement" would be meaningless
                 rig.servo(sid, 90)
@@ -228,16 +239,16 @@ def sweep_direction(rig, sid, target):
                 rig.servo(sid, angle - step * (BACKOFF_DEG // STEP_DEG))
                 print(f"  {angle:4d}°  shift {moved:5.2f} px  ← no movement ×{STALL_STEPS}: stop ≈ {stop}° (backed off)")
                 return stop, None
-            print(f"  {angle:4d}°  shift {moved:5.2f} px  (no movement {still}/{STALL_STEPS})")
+            print(f"  {angle:4d}°  shift {moved:5.2f} px  (no movement {still}/{STALL_STEPS}){mark}")
         else:
             still = 0
             shifts.append(moved)
-            print(f"  {angle:4d}°  shift {moved:5.2f} px")
+            print(f"  {angle:4d}°  shift {moved:5.2f} px{mark}")
     print(f"  no stop up to {target}°")
     return None, None
 
 
-def cmd_sweep(rig, servos, ends):
+def cmd_sweep(rig, servos, ends, beep_at=()):
     old_lo, old_hi = rig.get_limits()
     print(f"board_node limits now: min {old_lo} max {old_hi} — opening to 0–180 for the sweep")
     results = []
@@ -245,7 +256,7 @@ def cmd_sweep(rig, servos, ends):
         rig.set_limits([0.0, 0.0], [180.0, 180.0])
         for sid in servos:
             for target in ends:
-                stop, note = sweep_direction(rig, sid, target)
+                stop, note = sweep_direction(rig, sid, target, beep_at)
                 results.append((sid, target, stop, note))
     finally:
         centre(rig)
@@ -268,6 +279,8 @@ def main():
                     help="servo(s) to sweep (default: both; 1=tilt, 2=pan)")
     ap.add_argument("--end", choices=["low", "high"], action="append",
                     help="end(s) to sweep towards: low = 0°, high = 180° (default: both)")
+    ap.add_argument("--beep-at", type=int, action="append", default=[], metavar="DEG",
+                    help="short buzzer beep when the sweep commands this angle (repeatable)")
     args = ap.parse_args()
 
     rig = Rig()
@@ -276,7 +289,7 @@ def main():
             cmd_baseline(rig)
         else:
             ends = [{"low": 0, "high": 180}[e] for e in (args.end or ["low", "high"])]
-            cmd_sweep(rig, args.servo or [1, 2], ends)
+            cmd_sweep(rig, args.servo or [1, 2], ends, set(args.beep_at))
     finally:
         rig.close()
 
