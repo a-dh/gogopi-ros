@@ -142,6 +142,8 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 | `/gogopi/set_buzzer` | `std_srvs/SetBool` | SRV |
 | `/gogopi/e_stop` | `std_srvs/Trigger` | SRV |
 
+Servo travel limits: `servo_min_deg` [17, 0] / `servo_max_deg` [180, 180] (servo 1 tilt, servo 2 pan) clamp every servo command (angle, pulse, `/joint_states`). Tilt's mechanical low stop is ~13.8° — driving past it stalls the servo. URDF `tilt_joint` upper limit (1.2741 rad) mirrors the 17° clamp; `tilt_joint` = 0 points the camera 45° up.
+
 `cmd_vel` kinematic conversion: `left = v − ω·d/2`, `right = v + ω·d/2`, scaled by `max_speed_pct`. Parameters: `wheel_separation_m` (default 0.15), `max_speed_pct` (default 80).
 
 `/joint_states` maps URDF joint positions (radians) to servo angles: `tilt_joint` → servo 1 at `90 − deg(pos)`, `pan_joint` → servo 2 at `90 + deg(pos)` (the inverse of what `/gogopi/servo_state` publishes). Changes under 1° per servo are ignored, so a steady stream of messages doesn't keep re-sending the same command. It's ignored while the node is inactive.

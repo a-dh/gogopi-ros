@@ -34,6 +34,10 @@ class BoardNode(LifecycleNode):
         self.declare_parameter("battery_hz", 2.0)
         self.declare_parameter("state_hz", 10.0)
         self.declare_parameter("servo_angle_offset_deg", [0.0, 0.0])  # offsets for servo 1 and 2
+        # Mechanical travel limits (servo degrees, after offset) for servo 1 (tilt) and 2 (pan).
+        # Tilt hits its low stop at ~13.8° (≈31° below level) and stalls; 17° leaves margin.
+        self.declare_parameter("servo_min_deg", [17.0, 0.0])
+        self.declare_parameter("servo_max_deg", [180.0, 180.0])
 
         self._timers = []
         self._Board = None
@@ -225,14 +229,32 @@ class BoardNode(LifecycleNode):
 
     # ── service callbacks ──────────────────────────────────────────────────
 
+    def _servo_limits(self, servo_id: int) -> tuple[float, float]:
+        lo = self.get_parameter("servo_min_deg").value
+        hi = self.get_parameter("servo_max_deg").value
+        i = servo_id - 1
+        return (lo[i] if i < len(lo) else 0.0, hi[i] if i < len(hi) else 180.0)
+
+    def _clamp_servo(self, servo_id: int, angle: float) -> float:
+        lo, hi = self._servo_limits(servo_id)
+        clamped = min(max(angle, lo), hi)
+        if clamped != angle:
+            self.get_logger().warning(
+                f"Servo {servo_id}: {angle:.1f}° outside travel {lo:.0f}–{hi:.0f}°, using {clamped:.1f}°",
+                throttle_duration_sec=5.0)
+        return clamped
+
     def _apply_servo(self, cmd: ServoCommand):
         try:
             if cmd.use_pulse:
-                self._Board.setPWMServoPulse(cmd.servo_id, cmd.pulse_us, cmd.move_time_ms)
+                # 500–2500 µs ↔ 0–180°; clamp in angle space so the same limits apply
+                angle = self._clamp_servo(cmd.servo_id, (cmd.pulse_us - 500) * 180.0 / 2000.0)
+                pulse = int(round(500 + angle * 2000.0 / 180.0))
+                self._Board.setPWMServoPulse(cmd.servo_id, pulse, cmd.move_time_ms)
             else:
                 offsets = self.get_parameter("servo_angle_offset_deg").value
                 offset = offsets[cmd.servo_id - 1] if cmd.servo_id <= len(offsets) else 0.0
-                adjusted_angle = cmd.angle_deg + offset
+                adjusted_angle = self._clamp_servo(cmd.servo_id, cmd.angle_deg + offset)
                 self._Board.setPWMServoAngle(cmd.servo_id, adjusted_angle)
         except Exception as exc:
             self.get_logger().error(f"Servo {cmd.servo_id} I2C error: {exc}", throttle_duration_sec=5.0)

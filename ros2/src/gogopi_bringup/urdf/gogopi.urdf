@@ -306,7 +306,8 @@
     <child link="pan_link"/>
     <origin xyz="0.026 0 0.092" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
-    <limit lower="-3.14159" upper="3.14159" effort="1.0" velocity="1.0"/>
+    <!-- servo 2 travel 0–180° = ±90° -->
+    <limit lower="-1.5708" upper="1.5708" effort="1.0" velocity="1.0"/>
   </joint>
 
   <!-- Tilt joint (servo 1). Measured: tilt_joint = 0 (servo 90°, slider centred)
@@ -317,7 +318,10 @@
     <child link="tilt_link"/>
     <origin xyz="-0.012 0 0.0235" rpy="0 -0.7854 0"/>
     <axis xyz="0 1 0"/>
-    <limit lower="-1.5708" upper="1.5708" effort="1.0" velocity="1.0"/>
+    <!-- +down. Low stop at servo ~13.8° (joint 1.33); board_node clamps servo 1 to
+         ≥17° → joint ≤ 73° = 1.2741 rad (≈28° below level). Keep in sync with
+         board_node servo_min_deg. -->
+    <limit lower="-1.5708" upper="1.2741" effort="1.0" velocity="1.0"/>
   </joint>
 
   <!-- Cameras -->
