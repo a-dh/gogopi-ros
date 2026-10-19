@@ -22,6 +22,7 @@ fight the sweep. Point the camera at a scene with detail (not a blank wall).
     tools/pt_range_check.py sweep --servo 1 --end low --beep-at 14   # beep at 14° to watch
     tools/pt_range_check.py level                    # tilt angle where the camera is level
     tools/pt_range_check.py pan-check                # confirm level: image twist while panning
+    tools/pt_range_check.py scale                    # real °/commanded ° for tilt and pan
 
 'level' needs world-vertical edges in view (shelf uprights, door frames, wall
 corners) and an upright image (camera_node image_rotation 90 on this robot).
@@ -430,6 +431,54 @@ def cmd_pan_check(rig, tilts):
         print(f"  ⇒ tilt 90° (centre) points ≈ {sl * 90 + ic:+.0f}°")
 
 
+PANCHECK_PRODUCT = 0.66      # pan-check slope = tilt_scale × pan_scale (pan span taken as commanded)
+SCALE_STEPS = 6              # 2° steps per servo around level/centre
+
+
+def step_shifts(rig, sid, start, steps, other_sid, other_angle):
+    """Image shift (px, work res) per STEP_DEG step of servo sid, approached from below."""
+    rig.servo(other_sid, other_angle)
+    rig.servo(sid, start - 4)
+    time.sleep(1.0)
+    rig.servo(sid, start)
+    t = time.monotonic()
+    time.sleep(1.0)
+    prev = rig.frame_after(t + 1.0)
+    out = []
+    for i in range(1, steps + 1):
+        rig.servo(sid, start + i * STEP_DEG)
+        t = time.monotonic()
+        time.sleep(SETTLE_S)
+        cur = rig.frame_after(t + SETTLE_S)
+        dx, dy, r = shift(prev, cur)
+        prev = cur
+        out.append((float(np.hypot(dx, dy)), r))
+    return out
+
+
+def cmd_scale(rig):
+    """Tilt/pan real-degree scales. Shift ratio (f cancels) gives s_tilt/s_pan; pan-check gave
+    s_tilt·s_pan ≈ PANCHECK_PRODUCT. Camera held level (tilt LEVEL_TILT_DEG) for pan steps."""
+    half = SCALE_STEPS // 2 * STEP_DEG
+    tilt = step_shifts(rig, 1, LEVEL_TILT_DEG - half, SCALE_STEPS, 2, 90)
+    pan = step_shifts(rig, 2, 90 - half, SCALE_STEPS, 1, LEVEL_TILT_DEG)
+    rig.servo(2, 90)
+    rig.servo(1, LEVEL_TILT_DEG)
+    for name, rows in (("tilt", tilt), ("pan", pan)):
+        print(f"  {name:4s} px per {STEP_DEG}° step: " + " ".join(f"{px:5.2f}" for px, _ in rows))
+    # drop the first step of each (gear slack), use the median of the rest
+    pt = statistics.median(px for px, _ in tilt[1:]) / STEP_DEG
+    pp = statistics.median(px for px, _ in pan[1:]) / STEP_DEG
+    ratio = pt / pp
+    s_tilt = float(np.sqrt(PANCHECK_PRODUCT * ratio))
+    s_pan = float(np.sqrt(PANCHECK_PRODUCT / ratio))
+    print(f"\n  tilt {pt:.2f} px/cmd°, pan {pp:.2f} px/cmd° → s_tilt/s_pan = {ratio:.3f}")
+    print(f"  with s_tilt·s_pan = {PANCHECK_PRODUCT} (pan-check): s_tilt ≈ {s_tilt:.2f}, s_pan ≈ {s_pan:.2f} real °/commanded °")
+    f = pt / s_tilt / np.tan(np.radians(1.0))
+    print(f"  implied focal length ≈ {f:.0f} px at work width {WORK_WIDTH} "
+          f"(horizontal FOV ≈ {2*np.degrees(np.arctan(WORK_WIDTH/2/f)):.0f}° — sanity check, typical USB cams 50–70°)")
+
+
 def cmd_sweep(rig, servos, ends, beep_at=()):
     old_lo, old_hi = rig.get_limits()
     print(f"board_node limits now: min {old_lo} max {old_hi} — opening to 0–180 for the sweep")
@@ -456,7 +505,7 @@ def cmd_sweep(rig, servos, ends, beep_at=()):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["baseline", "sweep", "level", "pan-check"])
+    ap.add_argument("command", choices=["baseline", "sweep", "level", "pan-check", "scale"])
     ap.add_argument("--servo", type=int, choices=[1, 2], action="append",
                     help="servo(s) to sweep (default: both; 1=tilt, 2=pan)")
     ap.add_argument("--end", choices=["low", "high"], action="append",
@@ -474,6 +523,8 @@ def main():
     try:
         if args.command == "baseline":
             cmd_baseline(rig)
+        elif args.command == "scale":
+            cmd_scale(rig)
         elif args.command == "pan-check":
             cmd_pan_check(rig, args.tilts)
         elif args.command == "level":
