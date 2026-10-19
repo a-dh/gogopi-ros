@@ -62,10 +62,10 @@ WORK_WIDTH = 320            # frames are downscaled to this width for correlatio
 
 SERVOS = {1: "tilt", 2: "pan"}
 PROBE_STEPS = 3             # baseline: steps per servo to reveal backlash vs. normal steps
-# Tilt servo 90° points the camera 45° up; there pan partly *twists* the image
+# Tilt servo 90° points the camera ~41° up; there pan partly *twists* the image
 # (pure rotation when pointing straight up), which phase correlation can't see.
-# Level the camera for pan: tilt servo 45° (= tilt_joint +45° from its 45°-up zero).
-LEVEL_TILT_DEG = 45
+# Level the camera for pan: tilt servo 28° (measured with pan-check).
+LEVEL_TILT_DEG = 28
 
 
 class Rig:

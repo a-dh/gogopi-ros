@@ -42,6 +42,13 @@ class BoardNode(LifecycleNode):
         # far binds the cables, so 90° is the practical max.
         self.declare_parameter("servo_min_deg", [17.0, 0.0])
         self.declare_parameter("servo_max_deg", [90.0, 180.0])
+        # Servo angle ↔ URDF joint mapping (servo 1 = tilt_joint, +down; servo 2 = pan_joint):
+        #   joint_deg = scale · (zero − servo)  for tilt,  scale · (servo − zero)  for pan
+        # Tilt measured with tools/pt_range_check.py pan-check: level at servo 28°, and the
+        # SG90 moves only ~0.66° per commanded degree (servo 90° ≈ 41° up). Pan scale not
+        # measured yet (1.0).
+        self.declare_parameter("joint_zero_servo_deg", [28.0, 90.0])
+        self.declare_parameter("joint_deg_per_servo_deg", [0.66, 1.0])
 
         self._timers = []
         self._Board = None
@@ -156,8 +163,8 @@ class BoardNode(LifecycleNode):
         s_msg.header.stamp = self.get_clock().now().to_msg()
         s_msg.name = ["tilt_joint", "pan_joint"]
         s_msg.position = [
-            math.radians(90.0 - self._Board.getPWMServoAngle(1)),
-            math.radians(self._Board.getPWMServoAngle(2) - 90.0),
+            self._servo_to_joint(1, self._Board.getPWMServoAngle(1)),
+            self._servo_to_joint(2, self._Board.getPWMServoAngle(2)),
         ]
         self._pub_servo_state.publish(s_msg)
 
@@ -210,10 +217,10 @@ class BoardNode(LifecycleNode):
     def _cb_joint_states(self, msg: JointState):
         if not self._active:
             return
-        # Inverse of _publish_state: tilt pos = radians(90-angle), pan pos = radians(angle-90)
+        # Inverse of _publish_state (see joint_zero_servo_deg / joint_deg_per_servo_deg)
         joint_to_servo = {
-            'tilt_joint': (1, lambda p: 90.0 - math.degrees(p)),
-            'pan_joint':  (2, lambda p: 90.0 + math.degrees(p)),
+            'tilt_joint': (1, lambda p: self._joint_to_servo(1, p)),
+            'pan_joint':  (2, lambda p: self._joint_to_servo(2, p)),
         }
         for name, pos in zip(msg.name, msg.position):
             if name not in joint_to_servo:
@@ -232,6 +239,19 @@ class BoardNode(LifecycleNode):
             self._apply_servo(cmd)
 
     # ── service callbacks ──────────────────────────────────────────────────
+
+    # tilt (servo 1) is +down as the servo angle decreases; pan (servo 2) follows the servo
+    _JOINT_SIGN = {1: -1.0, 2: 1.0}
+
+    def _servo_to_joint(self, servo_id: int, angle_deg: float) -> float:
+        zero = self.get_parameter("joint_zero_servo_deg").value[servo_id - 1]
+        scale = self.get_parameter("joint_deg_per_servo_deg").value[servo_id - 1]
+        return math.radians(self._JOINT_SIGN[servo_id] * scale * (angle_deg - zero))
+
+    def _joint_to_servo(self, servo_id: int, joint_rad: float) -> float:
+        zero = self.get_parameter("joint_zero_servo_deg").value[servo_id - 1]
+        scale = self.get_parameter("joint_deg_per_servo_deg").value[servo_id - 1]
+        return zero + self._JOINT_SIGN[servo_id] * math.degrees(joint_rad) / scale
 
     def _servo_limits(self, servo_id: int) -> tuple[float, float]:
         lo = self.get_parameter("servo_min_deg").value

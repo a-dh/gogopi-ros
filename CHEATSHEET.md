@@ -87,8 +87,10 @@ journalctl -u hw_wifi -b          # hw_wifi log for this boot
 
 | Servo | Joint | Range |
 |---|---|---|
-| **1** | Tilt (up/down) | 0°–180°, centre = 90° |
+| **1** | Tilt (up/down) | limited to 17°–90° (cable). **Level = 28°**. 90° ≈ 41° up |
 | **2** | Pan (left/right) | 0°–180°, centre = 90° |
+
+Tilt is a cheap SG9 servo: it moves only ~0.66° per commanded degree and repeatability is low (approach a position from the same side for consistency). Level was found with `tools/pt_range_check.py pan-check` (no image twist while panning).
 
 ROS topics: `/gogopi/servo_cmd`  (ServoCommand msg)
 ROS service: `/gogopi/set_servo`  (SetServo srv)

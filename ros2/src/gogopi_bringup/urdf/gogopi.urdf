@@ -310,19 +310,20 @@
     <limit lower="-1.5708" upper="1.5708" effort="1.0" velocity="1.0"/>
   </joint>
 
-  <!-- Tilt joint (servo 1). Measured: tilt_joint = 0 (servo 90°, slider centred)
-       points the camera 45° UP, so the zero pose carries a −45° pitch (−y rotation
-       tips +x up). Servo mapping in board_node is unchanged. -->
+  <!-- Tilt joint (servo 1). tilt_joint = 0 is LEVEL (measured: servo 28°, pan-check).
+       board_node maps joint° = 0.66 · (28 − servo°)  (SG90 moves ~0.66°/commanded °).
+       +down. -->
   <joint name="tilt_joint" type="revolute">
     <parent link="pan_link"/>
     <child link="tilt_link"/>
-    <origin xyz="-0.012 0 0.0235" rpy="0 -0.7854 0"/>
+    <origin xyz="-0.012 0 0.0235" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
-    <!-- +down. Hard stop at servo ~6°; a cable touches from ~14°. board_node clamps
-         servo 1 to 17–90° → joint 0 … 73° = 0 … 1.2741 rad (camera 45° up … ≈28°
-         below level). Above servo 90° panning binds the cables. Keep in sync with
-         board_node servo_min_deg / servo_max_deg. -->
-    <limit lower="0.0" upper="1.2741" effort="1.0" velocity="1.0"/>
+    <!-- board_node clamps servo 1 to 17–90° → joint 0.66·(28−90) … 0.66·(28−17)
+         = −40.9° (up) … +7.3° (down) = −0.7142 … 0.1267 rad. Hard stop at servo ~6°,
+         a cable touches from ~14°; above servo 90° panning binds the cables. Keep in
+         sync with board_node servo_min/max_deg and joint_zero_servo_deg /
+         joint_deg_per_servo_deg. -->
+    <limit lower="-0.7142" upper="0.1267" effort="1.0" velocity="1.0"/>
   </joint>
 
   <!-- Cameras -->
