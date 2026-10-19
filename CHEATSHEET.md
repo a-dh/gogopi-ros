@@ -130,6 +130,24 @@ Mouse mode is on: wheel scrolls back through output (wheel down to the bottom or
 
 ---
 
+## RViz on quattro (desktop)
+
+Needs `./gprctl` running on the robot — its robot_state_publisher provides `/robot_description` + TF.
+
+```
+cd ~/gopiros2/quattro
+docker build -t gopiros2-rviz .   # once, and after changing entrypoint.sh / Dockerfile
+./run.sh                          # RViz + joint slider GUI; close RViz to exit
+```
+
+- Discovery: Tailscale up → unicast peer via `fastdds_tailscale.xml` (works off-LAN); Tailscale down → LAN multicast. `run.sh` prints which.
+- Layout (`rviz2_conf/default.rviz`, mounted live — no rebuild needed): RobotModel, TF, Thermal image, Camera, Lidar, Sonar. Fixed frame `base_link`.
+- Joint slider GUI publishes `/joint_states` → board_node moves the pan/tilt servos (TF follows the real servos via `/gogopi/servo_state`).
+- Not viewable in RViz: battery, buttons, motor_state → `ros2 topic echo` / `rqt_plot`.
+- Wheels show a TF warning in RobotModel (no wheel joint states) — harmless.
+
+---
+
 ## Key services
 
 | Service | Role |
