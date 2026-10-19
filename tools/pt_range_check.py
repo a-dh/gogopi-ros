@@ -10,6 +10,8 @@ and the main board switched on. Close the quattro RViz slider GUI first —
 it publishes /joint_states and would fight the sweep.
 
     tools/pt_range_check.py baseline      # noise floor only (servos centred)
+    tools/pt_range_check.py stall-test    # one brief stall at the known tilt low stop
+                                          # → real stall sag vs. noise: will a sweep work?
     tools/pt_range_check.py sweep         # find stops (pauses lidar, restores limits)
 
 Nothing is changed permanently: board_node's servo_min_deg/servo_max_deg are
@@ -42,6 +44,9 @@ STEP_DEG = 2
 STALL_SIGMA = 4.0           # dip jump over running level, in σ of a STEP_SAMPLES median
 BACKOFF_DEG = 10
 MAX_STALL_S = 1.0           # never hold a suspected stall longer than this
+
+STALL_TEST_SERVO = 1        # tilt
+STALL_TEST_ANGLE = 10       # ~4° past the low stop observed at ~13.8°
 
 SERVOS = {1: "tilt", 2: "pan"}
 
@@ -159,8 +164,38 @@ def cmd_baseline(rig, bus):
     print(f"  range  {st['min']:.3f}–{st['max']:.3f} V  ({(st['max']-st['min'])*1000:.0f} mV p-p, n={st['n']})")
     print(f"  σ of a {STEP_SAMPLES}-reading median ≈ {sigma_step*1000:.1f} mV → "
           f"stall threshold {STALL_SIGMA:.0f}σ ≈ {STALL_SIGMA*sigma_step*1000:.1f} mV")
-    print("  Expected stall sag ~25–100 mV. Threshold well below that → sweep should work.")
+    print("  Compare with the sag from 'stall-test' to see whether a sweep can detect stops.")
     return st, sigma_step
+
+
+def cmd_stall_test(rig, bus):
+    st, sigma_step = cmd_baseline(rig, bus)
+    old_lo, old_hi = rig.get_limits()
+    lo = list(old_lo)
+    lo[STALL_TEST_SERVO - 1] = 0.0
+    print(f"\nStall test: {SERVOS[STALL_TEST_SERVO]} → {STALL_TEST_ANGLE}° (past the stop) for "
+          f"{SETTLE_S + STEP_SAMPLES / SAMPLE_HZ:.1f} s, then back to 90°")
+    try:
+        rig.set_limits(lo, old_hi)
+        # approach to just above the stop first, so the timed part is the stall itself
+        rig.servo(STALL_TEST_SERVO, STALL_TEST_ANGLE + 10)
+        time.sleep(1.0)
+        near = st["median"] - statistics.median(sample(bus, STEP_SAMPLES))
+        rig.servo(STALL_TEST_SERVO, STALL_TEST_ANGLE)
+        time.sleep(SETTLE_S)
+        stalled = st["median"] - statistics.median(sample(bus, STEP_SAMPLES))
+    finally:
+        rig.servo(STALL_TEST_SERVO, 90)
+        rig.set_limits(old_lo, old_hi)
+        print(f"back at 90°, limits restored: min {old_lo} max {old_hi}")
+    thr = STALL_SIGMA * sigma_step
+    jump = stalled - near
+    print(f"  dip at {STALL_TEST_ANGLE + 10}° (free) {near*1000:6.1f} mV")
+    print(f"  dip at {STALL_TEST_ANGLE}° (stall) {stalled*1000:6.1f} mV")
+    print(f"  stall jump {jump*1000:.1f} mV vs threshold {thr*1000:.1f} mV → "
+          + ("detectable: sweep should work" if jump > 2 * thr else
+             "marginal: sweep may miss stops or false-trigger" if jump > thr else
+             "NOT detectable: battery sag can't find the stops"))
 
 
 def sweep_direction(rig, bus, sid, target, sigma_step, base_median):
@@ -225,7 +260,7 @@ def cmd_sweep(rig, bus, servos):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["baseline", "sweep"])
+    ap.add_argument("command", choices=["baseline", "stall-test", "sweep"])
     ap.add_argument("--servo", type=int, choices=[1, 2], action="append",
                     help="servo(s) to sweep (default: both; 1=tilt, 2=pan)")
     args = ap.parse_args()
@@ -235,6 +270,8 @@ def main():
         with SMBus(1) as bus:
             if args.command == "baseline":
                 cmd_baseline(rig, bus)
+            elif args.command == "stall-test":
+                cmd_stall_test(rig, bus)
             else:
                 cmd_sweep(rig, bus, args.servo or [1, 2])
     finally:
