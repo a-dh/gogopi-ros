@@ -38,8 +38,10 @@ class BoardNode(LifecycleNode):
         # Tilt (measured with tools/pt_range_check.py): hard stop ~6°, clean, no strain; a cable
         # starts touching at ~14° and drags the head down to the stop. 17° keeps clear of the
         # cable — drop to 9° once the cable is rerouted and a sweep shows smooth steps to 6°.
+        # Tilt moves freely up to the servo's 180°, but above 90° (camera 45° up) panning
+        # far binds the cables, so 90° is the practical max.
         self.declare_parameter("servo_min_deg", [17.0, 0.0])
-        self.declare_parameter("servo_max_deg", [180.0, 180.0])
+        self.declare_parameter("servo_max_deg", [90.0, 180.0])
 
         self._timers = []
         self._Board = None

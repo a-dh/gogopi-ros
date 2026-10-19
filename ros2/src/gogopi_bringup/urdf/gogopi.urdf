@@ -319,9 +319,10 @@
     <origin xyz="-0.012 0 0.0235" rpy="0 -0.7854 0"/>
     <axis xyz="0 1 0"/>
     <!-- +down. Hard stop at servo ~6°; a cable touches from ~14°. board_node clamps
-         servo 1 to ≥17° → joint ≤ 73° = 1.2741 rad (≈28° below level). Keep in sync
-         with board_node servo_min_deg. -->
-    <limit lower="-1.5708" upper="1.2741" effort="1.0" velocity="1.0"/>
+         servo 1 to 17–90° → joint 0 … 73° = 0 … 1.2741 rad (camera 45° up … ≈28°
+         below level). Above servo 90° panning binds the cables. Keep in sync with
+         board_node servo_min_deg / servo_max_deg. -->
+    <limit lower="0.0" upper="1.2741" effort="1.0" velocity="1.0"/>
   </joint>
 
   <!-- Cameras -->
