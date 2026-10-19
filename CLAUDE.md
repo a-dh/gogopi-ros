@@ -115,7 +115,7 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 |---|---|---|
 | `board_node` | `board_node` | pigpiod, I2C 0x7A, rpi-led-proxy |
 | `sonar_node` | `sonar_node` | I2C 0x77 |
-| `camera_node` | `camera_node` | `/dev/video0` (USB camera, OpenCV V4L2) |
+| `camera_node` | `camera_node` | USB camera via `/dev/v4l/by-id/usb-HBVCAM_CAMERA_HBVCAM_CAMERA-video-index0` (OpenCV V4L2) |
 | `thermal_node` | `thermal_node` | I2C 0x33 (MLX90640) |
 | `lidar_node` | `lidar_node` | `/dev/ydlidar` (YDLidar TX8, USB-serial) |
 | `robot_state_publisher` | `robot_state_publisher` | URDF (`gogopi.urdf`), `/gogopi/servo_state` → TF tree |
@@ -160,13 +160,13 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 
 ### camera_node — `gogopi_bringup/camera_node.py`
 
-USB camera via OpenCV (`python3-opencv`). `on_configure` opens the device with `cv2.CAP_V4L2` (forced, so GStreamer doesn't intercept the device path) and sets the resolution. `on_activate` starts the capture timer. `on_cleanup`/`on_shutdown` release the device.
+USB camera via OpenCV (`python3-opencv`). `on_configure` opens the device with `cv2.CAP_V4L2` (forced, so GStreamer doesn't intercept the device path) and sets the resolution. `on_activate` starts the capture timer. `on_cleanup`/`on_shutdown` release the device. After 15 consecutive failed reads (~1 s) it releases and reopens the device (at most every 2 s) — the camera can drop off USB and come back as a different `/dev/videoN`.
 
 | Topic | Type | Direction |
 |---|---|---|
 | `/gogopi/camera/image_raw` | `sensor_msgs/Image` (`bgr8`) | PUB `image_hz` |
 
-Parameters: `camera_device` (`/dev/video0`), `frame_id` (`camera_link`), `image_width` (640), `image_height` (480), `image_hz` (15.0), `image_rotation` (0/90/180/270).
+Parameters: `camera_device` (default `/dev/video0`; `gprctl` and `robot.launch.py` pass the by-id path above, which survives USB re-enumeration), `frame_id` (`camera_link`), `image_width` (640), `image_height` (480), `image_hz` (15.0), `image_rotation` (0/90/180/270).
 
 Published with a plain rclpy publisher, so no `/compressed` topic exists on the robot by default. Image-transport plugins only hook into C++ `image_transport` publishers.
 

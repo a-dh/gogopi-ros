@@ -213,7 +213,7 @@ Tmux windows:
 | 2 | board | `board_node` |
 | 3 | sonar | I2C probe at 0x77, then `sonar_node` |
 | 4 | thermal | I2C probe at 0x33, then `thermal_node` (MLX90640) |
-| 5 | camera | `/dev/video0` check, then `camera_node` |
+| 5 | camera | `/dev/v4l/by-id/usb-HBVCAM_…-video-index0` check, then `camera_node` |
 | 6 | lidar | `/dev/ydlidar` check, then `lidar_node` |
 | 7 | shell | configure + activate all nodes, then interactive |
 

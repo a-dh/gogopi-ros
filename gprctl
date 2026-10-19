@@ -10,7 +10,7 @@
 #   2 board    — board_node (lifecycle: configure then activate)
 #   3 sonar    — sonar_node with I2C probe check (0x77)
 #   4 thermal  — thermal_node with I2C probe check (MLX90640 at 0x33)
-#   5 camera   — camera_node with /dev/video0 check
+#   5 camera   — camera_node with /dev/v4l/by-id camera check
 #   6 lidar    — lidar_node with /dev/ydlidar check
 #   7 shell    — interactive shell, auto configure+activate of all nodes
 
@@ -63,12 +63,14 @@ tmux send-keys -t "$SESSION:thermal" \
   || echo 'WARNING: MLX90640 not detected at 0x33 — thermal_node will fail to configure') \
   && ros2 run gogopi_bringup thermal_node" Enter
 
-# 5: camera_node — check /dev/video0 first, then start node
+# 5: camera_node — check the camera's stable by-id path first, then start node
+#    (survives USB re-enumeration as /dev/videoN; camera_node reopens it)
+CAMERA_DEV="/dev/v4l/by-id/usb-HBVCAM_CAMERA_HBVCAM_CAMERA-video-index0"
 tmux new-window -t "$SESSION" -n "camera"
 tmux send-keys -t "$SESSION:camera" \
-  "$SETUP && (test -e /dev/video0 && echo 'Camera found at /dev/video0' \
-  || echo 'WARNING: /dev/video0 not found — camera_node will fail to configure') \
-  && ros2 run gogopi_bringup camera_node" Enter
+  "$SETUP && (test -e $CAMERA_DEV && echo 'Camera found at $CAMERA_DEV' \
+  || echo 'WARNING: $CAMERA_DEV not found — camera_node will fail to configure') \
+  && ros2 run gogopi_bringup camera_node --ros-args -p camera_device:=$CAMERA_DEV" Enter
 
 # 6: lidar_node — check /dev/ydlidar first, then start node
 tmux new-window -t "$SESSION" -n "lidar"
@@ -108,7 +110,7 @@ cat <<'EOF'
 │  Ctrl-b 2  board    — board_node (open here on attach)   │
 │  Ctrl-b 3  sonar    — sonar_node (0x77 check+run)        │
 │  Ctrl-b 4  thermal  — thermal_node (MLX90640 check+run)  │
-│  Ctrl-b 5  camera   — camera_node (/dev/video0 check)    │
+│  Ctrl-b 5  camera   — camera_node (by-id device check)   │
 │  Ctrl-b 6  lidar    — lidar_node (/dev/ydlidar check)    │
 │  Ctrl-b 7  shell    — interactive shell, auto-lifecycle  │
 │                                                          │

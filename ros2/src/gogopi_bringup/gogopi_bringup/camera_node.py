@@ -2,12 +2,20 @@
 GoGoPi USB camera lifecycle node.
 
 Publishes raw camera frames as sensor_msgs/Image on /gogopi/camera/image_raw.
+If reads keep failing (e.g. the camera dropped off USB and re-enumerated), the
+device is released and reopened. Use a /dev/v4l/by-id/ path for camera_device
+so the reopen finds it again even if it comes back as a different /dev/videoN.
 """
+
+import time
 
 import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, State
 from sensor_msgs.msg import Image
+
+REOPEN_AFTER_FAILURES = 15   # consecutive failed reads (~1 s at 15 Hz) before reopening
+REOPEN_INTERVAL_S = 2.0      # min time between reopen attempts
 
 
 class CameraNode(LifecycleNode):
@@ -23,6 +31,8 @@ class CameraNode(LifecycleNode):
         self._capture = None
         self._timer = None
         self._pub_image = None
+        self._fail_count = 0
+        self._last_reopen = 0.0
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         global cv2
@@ -32,6 +42,14 @@ class CameraNode(LifecycleNode):
             self.get_logger().error(f"cv2 not available — install python3-opencv: {e}")
             return TransitionCallbackReturn.FAILURE
 
+        if not self._open_capture():
+            return TransitionCallbackReturn.FAILURE
+
+        self._pub_image = self.create_publisher(Image, "/gogopi/camera/image_raw", 10)
+        self.get_logger().info("Camera configured")
+        return TransitionCallbackReturn.SUCCESS
+
+    def _open_capture(self) -> bool:
         device = self.get_parameter("camera_device").value
         width = int(self.get_parameter("image_width").value)
         height = int(self.get_parameter("image_height").value)
@@ -44,11 +62,21 @@ class CameraNode(LifecycleNode):
             self.get_logger().error(f"Failed to open camera device: {device}")
             self._capture.release()
             self._capture = None
-            return TransitionCallbackReturn.FAILURE
+            return False
+        self.get_logger().info(f"Camera opened: {device} ({width}x{height})")
+        self._fail_count = 0
+        return True
 
-        self._pub_image = self.create_publisher(Image, "/gogopi/camera/image_raw", 10)
-        self.get_logger().info(f"Camera configured on {device} ({width}x{height})")
-        return TransitionCallbackReturn.SUCCESS
+    def _try_reopen(self):
+        now = time.monotonic()
+        if now - self._last_reopen < REOPEN_INTERVAL_S:
+            return
+        self._last_reopen = now
+        self.get_logger().warning("Camera not delivering frames — reopening device")
+        if self._capture is not None:
+            self._capture.release()
+            self._capture = None
+        self._open_capture()
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
         hz = float(self.get_parameter("image_hz").value)
@@ -77,12 +105,20 @@ class CameraNode(LifecycleNode):
 
     def _publish_image(self):
         if self._capture is None:
+            self._try_reopen()
             return
 
         ret, frame = self._capture.read()
         if not ret or frame is None:
-            self.get_logger().warning("Camera read failed")
+            self._fail_count += 1
+            if self._fail_count == 1:
+                self.get_logger().warning("Camera read failed")
+            if self._fail_count >= REOPEN_AFTER_FAILURES:
+                self._try_reopen()
             return
+        if self._fail_count:
+            self.get_logger().info(f"Camera frames resumed after {self._fail_count} failed reads")
+            self._fail_count = 0
 
         height, width, channels = frame.shape
         if channels != 3:

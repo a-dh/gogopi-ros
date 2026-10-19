@@ -107,7 +107,7 @@ ROS service: `/gogopi/set_servo`  (SetServo srv)
 
 - Starting always kills any existing session of that name first, so `./gprctl` = restart everything.
 - Each window sources ROS2 + the workspace, sets `PYTHONPATH`, the Tailscale FastDDS profile and `ROS_DOMAIN_ID=0`.
-- Sensor windows probe their hardware first (I2C 0x77 / 0x33, `/dev/video0`, `/dev/ydlidar`) and print a WARNING if it's missing; that node then fails to configure, and the others carry on.
+- Sensor windows probe their hardware first (I2C 0x77 / 0x33, camera by-id path, `/dev/ydlidar`) and print a WARNING if it's missing; that node then fails to configure, and the others carry on.
 - The `shell` window waits ~4 s, then sends configure → activate to every node; a node that fails doesn't block the others.
 - Status bar (right side) refreshes every 5 s from `services/tmux_status.py`.
 - Reattach after detaching: `tmux attach -t gopiros2`.
@@ -141,7 +141,7 @@ docker build -t gopiros2-rviz .   # once, and after changing entrypoint.sh / Doc
 ```
 
 - Discovery: Tailscale up → unicast peer via `fastdds_tailscale.xml` (works off-LAN); Tailscale down → LAN multicast. `run.sh` prints which.
-- Layout (`rviz2_conf/default.rviz`, mounted live — no rebuild needed): RobotModel, TF, Thermal image, Camera, Lidar, Sonar. Fixed frame `base_link`.
+- Layout (`rviz2_conf/default.rviz`, mounted live — no rebuild needed): RobotModel, TF, Thermal Camera, Camera, Lidar, Sonar. Fixed frame `base_link`.
 - Joint slider GUI publishes `/joint_states` → board_node moves the pan/tilt servos (TF follows the real servos via `/gogopi/servo_state`).
 - Not viewable in RViz: battery, buttons, motor_state → `ros2 topic echo` / `rqt_plot`.
 - Wheels show a TF warning in RobotModel (no wheel joint states) — harmless.

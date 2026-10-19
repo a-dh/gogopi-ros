@@ -56,7 +56,7 @@ def generate_launch_description():
             namespace="",
             output="screen",
             parameters=[{
-                "camera_device": "/dev/video0",
+                "camera_device": "/dev/v4l/by-id/usb-HBVCAM_CAMERA_HBVCAM_CAMERA-video-index0",
                 "frame_id": "camera_link",
                 "image_rotation": 0,
             }],
