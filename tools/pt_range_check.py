@@ -2,7 +2,8 @@
 """Find the pan/tilt servos' mechanical end stops using the camera as feedback.
 
 The camera rides on the pan/tilt head, so while the head moves the picture
-shifts (tilt → vertical, pan → horizontal). Once the head hits its stop,
+shifts (direction depends on how the camera is mounted — on this robot tilt
+moves the image sideways — so the total shift magnitude is used). Once the head hits its stop,
 further servo commands no longer move the picture. This steps a servo 2° at
 a time from centre towards an end, measures the image shift per step with
 phase correlation, and calls it a stop when two consecutive steps move less
@@ -50,7 +51,7 @@ MIN_STEP_PX = 1.0           # calibration steps must shift at least this much
 WORK_WIDTH = 320            # frames are downscaled to this width for correlation
 
 SERVOS = {1: "tilt", 2: "pan"}
-AXIS = {1: 1, 2: 0}         # image axis that servo moves: tilt → y (1), pan → x (0)
+PROBE_STEPS = 3             # baseline: steps per servo to reveal backlash vs. normal steps
 
 
 class Rig:
@@ -123,6 +124,7 @@ class Rig:
 
     def close(self):
         self._exec.shutdown()
+        self._spin.join(timeout=2.0)
         self.node.destroy_node()
         rclpy.shutdown()
 
@@ -158,25 +160,27 @@ def cmd_baseline(rig):
     if statistics.median(resps) < MIN_RESPONSE:
         sys.exit("  Scene too featureless for shift measurement — point the camera at something with detail.")
 
-    # one probe step per servo to measure the shift a normal 2° step produces
+    # a few probe steps per servo: shift a normal 2° step produces (a small first
+    # step followed by normal ones = backlash/slack in the mount)
     for sid in (1, 2):
-        before = rig.frame_after(time.monotonic())
-        rig.servo(sid, 90 + STEP_DEG)
-        t = time.monotonic()
-        time.sleep(SETTLE_S)
-        after = rig.frame_after(t + SETTLE_S)
-        dx, dy, r = shift(before, after)
-        step_px = abs((dx, dy)[AXIS[sid]])
+        prev = rig.frame_after(time.monotonic())
+        for i in range(1, PROBE_STEPS + 1):
+            rig.servo(sid, 90 + i * STEP_DEG)
+            t = time.monotonic()
+            time.sleep(SETTLE_S)
+            cur = rig.frame_after(t + SETTLE_S)
+            dx, dy, r = shift(prev, cur)
+            prev = cur
+            step_px = float(np.hypot(dx, dy))
+            verdict = "OK" if step_px > 4 * max(noise, 0.25) else "TOO SMALL vs noise"
+            print(f"  {SERVOS[sid]} {90 + (i - 1) * STEP_DEG}→{90 + i * STEP_DEG}°: dx {dx:+6.2f} dy {dy:+6.2f} px "
+                  f"(resp {r:.2f}) → {step_px:5.2f} px — {verdict}")
         rig.servo(sid, 90)
         time.sleep(SETTLE_S)
-        verdict = "OK" if step_px > 4 * max(noise, 0.25) else "TOO SMALL vs noise"
-        print(f"  {SERVOS[sid]} {STEP_DEG}° step: dx {dx:+.2f} dy {dy:+.2f} px (resp {r:.2f}) → "
-              f"{step_px:.2f} px along its axis — {verdict}")
 
 
 def sweep_direction(rig, sid, target):
     step = STEP_DEG if target > 90 else -STEP_DEG
-    axis = AXIS[sid]
     centre(rig)
     print(f"\n{SERVOS[sid]} (servo {sid}) 90° → {target}°")
     prev = rig.frame_after(time.monotonic())
@@ -191,7 +195,7 @@ def sweep_direction(rig, sid, target):
         cur = rig.frame_after(t + SETTLE_S)
         dx, dy, resp = shift(prev, cur)
         prev = cur
-        moved = abs((dx, dy)[axis])
+        moved = float(np.hypot(dx, dy))
         if resp < MIN_RESPONSE:
             print(f"  {angle:4d}°  shift {moved:5.2f} px  resp {resp:.2f}  ← low response, scene lost; stopping")
             rig.servo(sid, angle - step * (BACKOFF_DEG // STEP_DEG))
