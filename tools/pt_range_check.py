@@ -21,6 +21,7 @@ fight the sweep. Point the camera at a scene with detail (not a blank wall).
     tools/pt_range_check.py sweep                    # both servos, both ends
     tools/pt_range_check.py sweep --servo 1 --end low --beep-at 14   # beep at 14° to watch
     tools/pt_range_check.py level                    # tilt angle where the camera is level
+    tools/pt_range_check.py pan-check                # confirm level: image twist while panning
 
 'level' needs world-vertical edges in view (shelf uprights, door frames, wall
 corners) and an upright image (camera_node image_rotation 90 on this robot).
@@ -357,6 +358,78 @@ def cmd_level(rig, a_from, a_to, step, frames):
     print(f"  camera left at tilt {target}°; frame with the {len(used)} edges used: /tmp/pt_level.jpg")
 
 
+PAN_CHECK_TILTS = [17, 20, 23, 26, 29, 32]
+PAN_SPAN = 20                 # pan 90±PAN_SPAN
+PAN_STEP = 5
+
+
+def roll_between(a, b):
+    """Image rotation (°) from a to b via ORB matches + RANSAC similarity; None if unreliable."""
+    orb = cv2.ORB_create(1500)
+    ka, da = orb.detectAndCompute(a, None)
+    kb, db = orb.detectAndCompute(b, None)
+    if da is None or db is None:
+        return None
+    m = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True).match(da, db)
+    if len(m) < 25:
+        return None
+    pa = np.float32([ka[x.queryIdx].pt for x in m])
+    pb = np.float32([kb[x.trainIdx].pt for x in m])
+    M, inl = cv2.estimateAffinePartial2D(pa, pb, method=cv2.RANSAC, ransacReprojThreshold=3.0)
+    if M is None or inl is None or inl.sum() < 20:
+        return None
+    return float(np.degrees(np.arctan2(M[1, 0], M[0, 0]))), int(inl.sum())
+
+
+def cmd_pan_check(rig, tilts):
+    """At each tilt, pan 90±PAN_SPAN: image roll per pan degree ≈ sin(pitch). Level → no twist."""
+    lo_lim, hi_lim = rig.get_limits()
+    tilts = [t for t in tilts if lo_lim[0] <= t <= hi_lim[0]]
+    pans = list(range(90 - PAN_SPAN, 90 + PAN_SPAN + 1, PAN_STEP))
+    print(f"Pan check: tilts {tilts}, pan {pans[0]}→{pans[-1]}° in {PAN_STEP}° steps "
+          "(tilt approached from below, pan from the left, to keep gear slack consistent)")
+    results = []
+    for tilt in tilts:
+        rig.servo(2, pans[0] - PAN_STEP)
+        rig.servo(1, max(lo_lim[0], tilt - 5))
+        time.sleep(1.0)
+        rig.servo(1, tilt)
+        rig.servo(2, pans[0])
+        t = time.monotonic()
+        time.sleep(1.0)
+        _, prev = rig.frame_after(t + 1.0, full=True)
+        total, used, bad = 0.0, 0, 0
+        for p in pans[1:]:
+            rig.servo(2, p)
+            t = time.monotonic()
+            time.sleep(SETTLE_S)
+            _, cur = rig.frame_after(t + SETTLE_S, full=True)
+            r = roll_between(prev, cur)
+            prev = cur
+            if r is None:
+                bad += 1
+                continue
+            total += r[0]
+            used += 1
+        span = PAN_STEP * used
+        if used < len(pans[1:]) // 2:
+            print(f"  tilt {tilt:3d}°: too few reliable steps ({used}/{len(pans) - 1}) — scene lacks detail?")
+            continue
+        pitch = float(np.degrees(np.arcsin(np.clip(total / span, -1, 1))))
+        results.append((tilt, total, span, pitch))
+        print(f"  tilt {tilt:3d}°: image roll {total:+6.2f}° over {span}° of pan → pitch ≈ {pitch:+5.1f}°"
+              + (f"  ({bad} step(s) skipped)" if bad else ""))
+    rig.servo(2, 90)
+    if len(results) >= 2:
+        xa = np.array([r[0] for r in results], float)
+        ya = np.array([r[3] for r in results], float)
+        sl, ic = np.polyfit(xa, ya, 1)
+        level = -ic / sl
+        print(f"\n  pitch ≈ {sl:+.2f}°/servo° → zero (level) at tilt ≈ {level:.1f}°"
+              f"{'' if xa.min() <= level <= xa.max() else '  (extrapolated)'}")
+        print(f"  ⇒ tilt 90° (centre) points ≈ {sl * 90 + ic:+.0f}°")
+
+
 def cmd_sweep(rig, servos, ends, beep_at=()):
     old_lo, old_hi = rig.get_limits()
     print(f"board_node limits now: min {old_lo} max {old_hi} — opening to 0–180 for the sweep")
@@ -383,7 +456,7 @@ def cmd_sweep(rig, servos, ends, beep_at=()):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["baseline", "sweep", "level"])
+    ap.add_argument("command", choices=["baseline", "sweep", "level", "pan-check"])
     ap.add_argument("--servo", type=int, choices=[1, 2], action="append",
                     help="servo(s) to sweep (default: both; 1=tilt, 2=pan)")
     ap.add_argument("--end", choices=["low", "high"], action="append",
@@ -392,6 +465,7 @@ def main():
     ap.add_argument("--to", dest="a_to", type=int, default=LEVEL_RANGE[1], help="level: last tilt angle")
     ap.add_argument("--step", type=int, default=LEVEL_STEP_DEG, help="level: tilt step (°)")
     ap.add_argument("--frames", type=int, default=1, help="level: frames pooled per step")
+    ap.add_argument("--tilts", type=int, nargs="+", default=PAN_CHECK_TILTS, help="pan-check: tilt angles")
     ap.add_argument("--beep-at", type=int, action="append", default=[], metavar="DEG",
                     help="short buzzer beep when the sweep commands this angle (repeatable)")
     args = ap.parse_args()
@@ -400,6 +474,8 @@ def main():
     try:
         if args.command == "baseline":
             cmd_baseline(rig)
+        elif args.command == "pan-check":
+            cmd_pan_check(rig, args.tilts)
         elif args.command == "level":
             cmd_level(rig, args.a_from, args.a_to, args.step, args.frames)
         else:
