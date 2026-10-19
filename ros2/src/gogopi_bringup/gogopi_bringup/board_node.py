@@ -10,6 +10,7 @@ Lifecycle transitions:
 """
 
 import math
+import time
 
 import rclpy
 from rclpy.executors import ExternalShutdownException
@@ -366,11 +367,16 @@ def main(args=None):
     executor = rclpy.executors.SingleThreadedExecutor()
     executor.add_node(node)
     try:
-        executor.spin()
-    except (KeyboardInterrupt, ExternalShutdownException):
-        pass
-    except Exception as exc:
-        node.get_logger().error(f"Executor error: {exc}")
+        while rclpy.ok():
+            try:
+                executor.spin()
+            except (KeyboardInterrupt, ExternalShutdownException):
+                break
+            except Exception as exc:
+                # e.g. 'activate' requested while unconfigured (sensor missing at start) raises
+                # out of rclpy's change_state handler — log it and keep serving instead of exiting
+                node.get_logger().error(f"Executor error (continuing): {exc}")
+                time.sleep(0.5)
     finally:
         node.on_shutdown(None)  # stop motors and release GPIO before the process exits
         node.destroy_node()
