@@ -19,6 +19,8 @@ gopiros2/
 │   └── src/
 │       ├── gogopi_msgs/   ← Custom msg/srv (CMake)
 │       └── gogopi_bringup/← Lifecycle nodes + launch files (ament_python)
+├── tools/
+│   └── pt_range_check.py  ← find pan/tilt end stops from battery-voltage sag (run on robot, battery required)
 ├── pyproject.toml         ← gogopi-sdk pip package (HiwonderSDK) + gogopi-install entry point
 └── gogopi/install.py      ← console script: sudo gogopi-install install|remove
 ```
