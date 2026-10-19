@@ -284,20 +284,38 @@ class BoardNode(LifecycleNode):
                 throttle_duration_sec=5.0)
         return clamped
 
+    I2C_ATTEMPTS = 3
+    I2C_RETRY_DELAY_S = 0.005
+
+    def _i2c_retry(self, what: str, fn, *args):
+        """Call an SDK I2C write, retrying briefly. Under pan stress an occasional write to
+        the expansion board fails ('I2C write failed'); a retry a few ms later succeeds."""
+        for attempt in range(1, self.I2C_ATTEMPTS + 1):
+            try:
+                result = fn(*args)
+                if attempt > 1:
+                    self.get_logger().info(f"{what}: I2C write succeeded on attempt {attempt}",
+                                           throttle_duration_sec=5.0)
+                return result
+            except Exception as exc:
+                if attempt == self.I2C_ATTEMPTS:
+                    self.get_logger().error(f"{what} I2C error after {attempt} attempts: {exc}",
+                                            throttle_duration_sec=5.0)
+                    return None
+                time.sleep(self.I2C_RETRY_DELAY_S)
+
     def _apply_servo(self, cmd: ServoCommand):
-        try:
-            if cmd.use_pulse:
-                # 500–2500 µs ↔ 0–180°; clamp in angle space so the same limits apply
-                angle = self._clamp_servo(cmd.servo_id, (cmd.pulse_us - 500) * 180.0 / 2000.0)
-                pulse = int(round(500 + angle * 2000.0 / 180.0))
-                self._Board.setPWMServoPulse(cmd.servo_id, pulse, cmd.move_time_ms)
-            else:
-                offsets = self.get_parameter("servo_angle_offset_deg").value
-                offset = offsets[cmd.servo_id - 1] if cmd.servo_id <= len(offsets) else 0.0
-                adjusted_angle = self._clamp_servo(cmd.servo_id, cmd.angle_deg + offset)
-                self._Board.setPWMServoAngle(cmd.servo_id, adjusted_angle)
-        except Exception as exc:
-            self.get_logger().error(f"Servo {cmd.servo_id} I2C error: {exc}", throttle_duration_sec=5.0)
+        what = f"Servo {cmd.servo_id}"
+        if cmd.use_pulse:
+            # 500–2500 µs ↔ 0–180°; clamp in angle space so the same limits apply
+            angle = self._clamp_servo(cmd.servo_id, (cmd.pulse_us - 500) * 180.0 / 2000.0)
+            pulse = int(round(500 + angle * 2000.0 / 180.0))
+            self._i2c_retry(what, self._Board.setPWMServoPulse, cmd.servo_id, pulse, cmd.move_time_ms)
+        else:
+            offsets = self.get_parameter("servo_angle_offset_deg").value
+            offset = offsets[cmd.servo_id - 1] if cmd.servo_id <= len(offsets) else 0.0
+            adjusted_angle = self._clamp_servo(cmd.servo_id, cmd.angle_deg + offset)
+            self._i2c_retry(what, self._Board.setPWMServoAngle, cmd.servo_id, adjusted_angle)
 
     def _svc_set_servo(self, request, response):
         # _apply_servo logs and suppresses hardware errors; check outcome via servo state
