@@ -318,9 +318,9 @@
     <child link="tilt_link"/>
     <origin xyz="-0.012 0 0.0235" rpy="0 -0.7854 0"/>
     <axis xyz="0 1 0"/>
-    <!-- +down. Low stop at servo ~13.8° (joint 1.33); board_node clamps servo 1 to
-         ≥17° → joint ≤ 73° = 1.2741 rad (≈28° below level). Keep in sync with
-         board_node servo_min_deg. -->
+    <!-- +down. Hard stop at servo ~6°; a cable touches from ~14°. board_node clamps
+         servo 1 to ≥17° → joint ≤ 73° = 1.2741 rad (≈28° below level). Keep in sync
+         with board_node servo_min_deg. -->
     <limit lower="-1.5708" upper="1.2741" effort="1.0" velocity="1.0"/>
   </joint>
 

@@ -144,7 +144,7 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 | `/gogopi/set_buzzer` | `std_srvs/SetBool` | SRV |
 | `/gogopi/e_stop` | `std_srvs/Trigger` | SRV |
 
-Servo travel limits: `servo_min_deg` [17, 0] / `servo_max_deg` [180, 180] (servo 1 tilt, servo 2 pan) clamp every servo command (angle, pulse, `/joint_states`). Tilt's mechanical low stop is ~13.8° — driving past it stalls the servo. URDF `tilt_joint` upper limit (1.2741 rad) mirrors the 17° clamp; `tilt_joint` = 0 points the camera 45° up.
+Servo travel limits: `servo_min_deg` [17, 0] / `servo_max_deg` [180, 180] (servo 1 tilt, servo 2 pan) clamp every servo command (angle, pulse, `/joint_states`). Tilt (measured with `tools/pt_range_check.py`): hard stop ~6°; a cable touches from ~14° (that's where the servo first sounded stalled). 17° keeps clear of the cable; 9° possible once the cable is rerouted. URDF `tilt_joint` upper limit (1.2741 rad) mirrors the 17° clamp; `tilt_joint` = 0 points the camera 45° up.
 
 `cmd_vel` kinematic conversion: `left = v − ω·d/2`, `right = v + ω·d/2`, scaled by `max_speed_pct`. Parameters: `wheel_separation_m` (default 0.15), `max_speed_pct` (default 80).
 
