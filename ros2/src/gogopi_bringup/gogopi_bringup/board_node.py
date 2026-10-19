@@ -41,8 +41,11 @@ class BoardNode(LifecycleNode):
         # cable — drop to 9° once the cable is rerouted and a sweep shows smooth steps to 6°.
         # Tilt moves freely up to the servo's 180°, but above 90° (camera 45° up) panning
         # far binds the cables, so 90° is the practical max.
-        self.declare_parameter("servo_min_deg", [17.0, 0.0])
-        self.declare_parameter("servo_max_deg", [90.0, 180.0])
+        # Pan TEMPORARILY 40–140° (2026-10-18): wide pan swings snapped the camera's USB data
+        # wire at its connector; protects the tower wiring until it's rerouted. Measured pan
+        # travel: starboard soft stop ≈ 12°, port free to 180° but cable-tight from ~150°.
+        self.declare_parameter("servo_min_deg", [17.0, 40.0])
+        self.declare_parameter("servo_max_deg", [90.0, 140.0])
         # Servo angle ↔ URDF joint mapping (servo 1 = tilt_joint, +down; servo 2 = pan_joint):
         #   joint_deg = scale · (zero − servo)  for tilt,  scale · (servo − zero)  for pan
         # Tilt: level at servo 28° (tools/pt_range_check.py pan-check: image twist while

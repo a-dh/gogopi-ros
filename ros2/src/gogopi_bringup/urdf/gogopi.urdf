@@ -306,8 +306,9 @@
     <child link="pan_link"/>
     <origin xyz="0.026 0 0.092" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
-    <!-- servo 2 travel 0–180° = ±90° -->
-    <limit lower="-1.5708" upper="1.5708" effort="1.0" velocity="1.0"/>
+    <!-- pan_joint° = servo° − 90 (+ = port). TEMPORARY: board_node clamps pan to 40–140°
+         (±50°) until the tower wiring is rerouted; full servo travel is ±90°. -->
+    <limit lower="-0.8727" upper="0.8727" effort="1.0" velocity="1.0"/>
   </joint>
 
   <!-- Tilt joint (servo 1). tilt_joint = 0 is LEVEL (measured: servo 28°, pan-check).
