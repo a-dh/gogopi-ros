@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
-"""Find the pan/tilt servos' mechanical end stops from battery-voltage sag.
+"""Find the pan/tilt servos' mechanical end stops using the camera as feedback.
 
-A servo pushing against its stop draws stall current, which shows up as a dip
-in battery voltage. This steps each servo from centre towards each end and
-watches the battery ADC (I2C 0x7A, 1 mV/count) for a sustained jump in sag.
+The camera rides on the pan/tilt head, so while the head moves the picture
+shifts (tilt → vertical, pan → horizontal). Once the head hits its stop,
+further servo commands no longer move the picture. This steps a servo 2° at
+a time from centre towards an end, measures the image shift per step with
+phase correlation, and calls it a stop when two consecutive steps move less
+than STALL_FRACTION of a normal step. It then backs off at once.
 
-Run ON THE ROBOT with gprctl running (board_node active), a battery connected
-and the main board switched on. Close the quattro RViz slider GUI first —
-it publishes /joint_states and would fight the sweep.
+(Battery-voltage sag was tried first: a tilt stall only dipped the battery
+~8 mV against ~24 mV of ADC noise — not detectable.)
 
-    tools/pt_range_check.py baseline      # noise floor only (servos centred)
-    tools/pt_range_check.py stall-test    # one brief stall at the known tilt low stop
-                                          # → real stall sag vs. noise: will a sweep work?
-    tools/pt_range_check.py sweep         # find stops (pauses lidar, restores limits)
+Run ON THE ROBOT with gprctl running (board_node + camera_node active). Close
+the quattro RViz slider GUI first — it publishes /joint_states and would
+fight the sweep. Point the camera at a scene with detail (not a blank wall).
+
+    tools/pt_range_check.py baseline                 # scene texture + still-image noise
+    tools/pt_range_check.py sweep --servo 1 --end low   # one direction (tilt down)
+    tools/pt_range_check.py sweep                    # both servos, both ends
 
 Nothing is changed permanently: board_node's servo_min_deg/servo_max_deg are
 opened to 0–180 for the sweep and always restored afterwards.
@@ -21,83 +26,44 @@ opened to 0–180 for the sweep and always restored afterwards.
 import argparse
 import statistics
 import sys
+import threading
 import time
 
+import cv2
+import numpy as np
 import rclpy
+from rclpy.executors import SingleThreadedExecutor
 from rcl_interfaces.msg import Parameter, ParameterType, ParameterValue
 from rcl_interfaces.srv import GetParameters, SetParameters
-from lifecycle_msgs.msg import Transition
-from lifecycle_msgs.srv import ChangeState
+from sensor_msgs.msg import Image
 from gogopi_msgs.msg import ServoCommand
 from gogopi_msgs.srv import SetServo
-from smbus2 import SMBus, i2c_msg
 
-ADC_ADDR = 0x7A
-BAT_MIN_PLAUSIBLE = 5.5     # V; below → no battery
-BAT_MAX_SPREAD = 0.3        # V; wider → ADC floating (no battery), same rule as hw_button_scan
-
-BASELINE_SAMPLES = 100
-SAMPLE_HZ = 50.0
-STEP_SAMPLES = 20           # readings per sweep step (0.4 s)
-SETTLE_S = 0.4              # after each step, before sampling
 STEP_DEG = 2
-STALL_SIGMA = 4.0           # dip jump over running level, in σ of a STEP_SAMPLES median
+SETTLE_S = 0.5              # after each step, before grabbing a frame
+CALIBRATION_STEPS = 3       # first steps from centre set the "normal" shift per step
+STALL_FRACTION = 0.3        # step moving < this × normal → no movement
+STALL_STEPS = 2             # consecutive no-movement steps to call a stop
 BACKOFF_DEG = 10
-MAX_STALL_S = 1.0           # never hold a suspected stall longer than this
-
-STALL_TEST_SERVO = 1        # tilt
-STALL_TEST_ANGLE = 10       # ~4° past the low stop observed at ~13.8°
+MIN_RESPONSE = 0.1          # phase-correlation peak below this → scene lost
+MIN_STEP_PX = 1.0           # calibration steps must shift at least this much
+WORK_WIDTH = 320            # frames are downscaled to this width for correlation
 
 SERVOS = {1: "tilt", 2: "pan"}
+AXIS = {1: 1, 2: 0}         # image axis that servo moves: tilt → y (1), pan → x (0)
 
-
-# ── battery ADC ──────────────────────────────────────────────────────────────
-
-def read_volts(bus):
-    w = i2c_msg.write(ADC_ADDR, [0])
-    r = i2c_msg.read(ADC_ADDR, 2)
-    bus.i2c_rdwr(w, r)
-    d = list(r)
-    return (d[0] | (d[1] << 8)) / 1000.0
-
-
-def sample(bus, n, hz=SAMPLE_HZ):
-    out = []
-    period = 1.0 / hz
-    for _ in range(n):
-        t = time.monotonic()
-        try:
-            out.append(read_volts(bus))
-        except OSError:
-            pass  # bus shared with board_node; skip a collided read
-        time.sleep(max(0.0, period - (time.monotonic() - t)))
-    return out
-
-
-def stats(v):
-    s = sorted(v)
-    return {
-        "n": len(v),
-        "median": statistics.median(s),
-        "mean": statistics.fmean(s),
-        "stdev": statistics.pstdev(s),
-        "min": s[0],
-        "max": s[-1],
-    }
-
-
-def check_battery(st):
-    if st["median"] < BAT_MIN_PLAUSIBLE or st["max"] - st["min"] > BAT_MAX_SPREAD:
-        sys.exit(f"No battery detected (median {st['median']:.3f} V, range "
-                 f"{st['min']:.3f}–{st['max']:.3f} V). Connect a battery and switch the main board on.")
-
-
-# ── ROS helpers ──────────────────────────────────────────────────────────────
 
 class Rig:
     def __init__(self):
         rclpy.init()
         self.node = rclpy.create_node("pt_range_check")
+        self._lock = threading.Lock()
+        self._frame = None          # (monotonic receive time, grayscale float32)
+        self.node.create_subscription(Image, "/gogopi/camera/image_raw", self._on_image, 2)
+        self._exec = SingleThreadedExecutor()
+        self._exec.add_node(self.node)
+        self._spin = threading.Thread(target=self._exec.spin, daemon=True)
+        self._spin.start()
         self.set_servo = self._client(SetServo, "/gogopi/set_servo")
         self.get_params = self._client(GetParameters, "/board_node/get_parameters")
         self.set_params = self._client(SetParameters, "/board_node/set_parameters")
@@ -108,11 +74,34 @@ class Rig:
             sys.exit(f"Service {name} not available — is gprctl running with board_node active?")
         return c
 
+    def _on_image(self, msg):
+        if msg.encoding != "bgr8":
+            return
+        img = np.frombuffer(bytes(msg.data), np.uint8).reshape(msg.height, msg.width, 3)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        h = int(gray.shape[0] * WORK_WIDTH / gray.shape[1])
+        gray = cv2.resize(gray, (WORK_WIDTH, h), interpolation=cv2.INTER_AREA).astype(np.float32)
+        with self._lock:
+            self._frame = (time.monotonic(), gray)
+
+    def frame_after(self, t, timeout=3.0):
+        """First frame received after monotonic time t."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            with self._lock:
+                f = self._frame
+            if f is not None and f[0] > t:
+                return f[1]
+            time.sleep(0.02)
+        sys.exit("No camera frames — is camera_node active?")
+
     def call(self, client, req, timeout=5.0):
         fut = client.call_async(req)
-        rclpy.spin_until_future_complete(self.node, fut, timeout_sec=timeout)
-        if not fut.done():
-            raise RuntimeError(f"service call timed out: {client.srv_name}")
+        deadline = time.monotonic() + timeout
+        while not fut.done():
+            if time.monotonic() > deadline:
+                raise RuntimeError(f"service call timed out: {client.srv_name}")
+            time.sleep(0.01)
         return fut.result()
 
     def servo(self, sid, angle):
@@ -132,148 +121,148 @@ class Rig:
         if not all(r.successful for r in res.results):
             raise RuntimeError(f"setting servo limits failed: {[r.reason for r in res.results]}")
 
-    def lidar(self, transition_id):
-        c = self.node.create_client(ChangeState, "/lidar_node/change_state")
-        if not c.wait_for_service(timeout_sec=3.0):
-            return False
-        res = self.call(c, ChangeState.Request(transition=Transition(id=transition_id)), timeout=15.0)
-        return res.success
-
     def close(self):
+        self._exec.shutdown()
         self.node.destroy_node()
         rclpy.shutdown()
+
+
+def shift(a, b):
+    """Image shift from a to b in pixels (dx, dy) and correlation peak response."""
+    win = cv2.createHanningWindow((a.shape[1], a.shape[0]), cv2.CV_32F)
+    (dx, dy), resp = cv2.phaseCorrelate(a, b, win)
+    return dx, dy, resp
 
 
 def centre(rig):
     rig.servo(1, 90)
     rig.servo(2, 90)
-    time.sleep(1.0)
+    time.sleep(1.5)
 
 
 # ── commands ─────────────────────────────────────────────────────────────────
 
-def cmd_baseline(rig, bus):
+def cmd_baseline(rig):
     print("Centring servos (90°/90°) …")
     centre(rig)
-    print(f"Sampling battery: {BASELINE_SAMPLES} readings at {SAMPLE_HZ:.0f} Hz …")
-    v = sample(bus, BASELINE_SAMPLES)
-    st = stats(v)
-    check_battery(st)
-    sigma_step = 1.2533 * st["stdev"] / (STEP_SAMPLES ** 0.5)  # σ of a STEP_SAMPLES median
-    print(f"  median {st['median']:.3f} V   mean {st['mean']:.3f} V   σ {st['stdev']*1000:.1f} mV")
-    print(f"  range  {st['min']:.3f}–{st['max']:.3f} V  ({(st['max']-st['min'])*1000:.0f} mV p-p, n={st['n']})")
-    print(f"  σ of a {STEP_SAMPLES}-reading median ≈ {sigma_step*1000:.1f} mV → "
-          f"stall threshold {STALL_SIGMA:.0f}σ ≈ {STALL_SIGMA*sigma_step*1000:.1f} mV")
-    print("  Compare with the sag from 'stall-test' to see whether a sweep can detect stops.")
-    return st, sigma_step
+    frames = []
+    for _ in range(6):
+        frames.append(rig.frame_after(time.monotonic()))
+        time.sleep(0.2)
+    res = [shift(frames[0], f) for f in frames[1:]]
+    mags = [max(abs(dx), abs(dy)) for dx, dy, _ in res]
+    resps = [r for _, _, r in res]
+    noise = max(mags)
+    print(f"  still-image shift: max {noise:.2f} px, median {statistics.median(mags):.2f} px")
+    print(f"  correlation response: median {statistics.median(resps):.2f} (need ≥ {MIN_RESPONSE})")
+    if statistics.median(resps) < MIN_RESPONSE:
+        sys.exit("  Scene too featureless for shift measurement — point the camera at something with detail.")
 
-
-def cmd_stall_test(rig, bus):
-    st, sigma_step = cmd_baseline(rig, bus)
-    old_lo, old_hi = rig.get_limits()
-    lo = list(old_lo)
-    lo[STALL_TEST_SERVO - 1] = 0.0
-    print(f"\nStall test: {SERVOS[STALL_TEST_SERVO]} → {STALL_TEST_ANGLE}° (past the stop) for "
-          f"{SETTLE_S + STEP_SAMPLES / SAMPLE_HZ:.1f} s, then back to 90°")
-    try:
-        rig.set_limits(lo, old_hi)
-        # approach to just above the stop first, so the timed part is the stall itself
-        rig.servo(STALL_TEST_SERVO, STALL_TEST_ANGLE + 10)
-        time.sleep(1.0)
-        near = st["median"] - statistics.median(sample(bus, STEP_SAMPLES))
-        rig.servo(STALL_TEST_SERVO, STALL_TEST_ANGLE)
+    # one probe step per servo to measure the shift a normal 2° step produces
+    for sid in (1, 2):
+        before = rig.frame_after(time.monotonic())
+        rig.servo(sid, 90 + STEP_DEG)
+        t = time.monotonic()
         time.sleep(SETTLE_S)
-        stalled = st["median"] - statistics.median(sample(bus, STEP_SAMPLES))
-    finally:
-        rig.servo(STALL_TEST_SERVO, 90)
-        rig.set_limits(old_lo, old_hi)
-        print(f"back at 90°, limits restored: min {old_lo} max {old_hi}")
-    thr = STALL_SIGMA * sigma_step
-    jump = stalled - near
-    print(f"  dip at {STALL_TEST_ANGLE + 10}° (free) {near*1000:6.1f} mV")
-    print(f"  dip at {STALL_TEST_ANGLE}° (stall) {stalled*1000:6.1f} mV")
-    print(f"  stall jump {jump*1000:.1f} mV vs threshold {thr*1000:.1f} mV → "
-          + ("detectable: sweep should work" if jump > 2 * thr else
-             "marginal: sweep may miss stops or false-trigger" if jump > thr else
-             "NOT detectable: battery sag can't find the stops"))
+        after = rig.frame_after(t + SETTLE_S)
+        dx, dy, r = shift(before, after)
+        step_px = abs((dx, dy)[AXIS[sid]])
+        rig.servo(sid, 90)
+        time.sleep(SETTLE_S)
+        verdict = "OK" if step_px > 4 * max(noise, 0.25) else "TOO SMALL vs noise"
+        print(f"  {SERVOS[sid]} {STEP_DEG}° step: dx {dx:+.2f} dy {dy:+.2f} px (resp {r:.2f}) → "
+              f"{step_px:.2f} px along its axis — {verdict}")
 
 
-def sweep_direction(rig, bus, sid, target, sigma_step, base_median):
+def sweep_direction(rig, sid, target):
     step = STEP_DEG if target > 90 else -STEP_DEG
+    axis = AXIS[sid]
     centre(rig)
-    dips = []
-    angle = 90
     print(f"\n{SERVOS[sid]} (servo {sid}) 90° → {target}°")
+    prev = rig.frame_after(time.monotonic())
+    shifts = []
+    still = 0
+    angle = 90
     while (angle + step <= target) if step > 0 else (angle + step >= target):
         angle += step
         rig.servo(sid, angle)
+        t = time.monotonic()
         time.sleep(SETTLE_S)
-        t0 = time.monotonic()
-        dip = base_median - statistics.median(sample(bus, STEP_SAMPLES))
-        level = statistics.median(dips[-5:]) if dips else 0.0
-        flag = ""
-        if dip - level > STALL_SIGMA * sigma_step:
-            # confirm with a second reading, within the stall time budget
-            dip2 = base_median - statistics.median(sample(bus, STEP_SAMPLES))
-            if dip2 - level > STALL_SIGMA * sigma_step:
+        cur = rig.frame_after(t + SETTLE_S)
+        dx, dy, resp = shift(prev, cur)
+        prev = cur
+        moved = abs((dx, dy)[axis])
+        if resp < MIN_RESPONSE:
+            print(f"  {angle:4d}°  shift {moved:5.2f} px  resp {resp:.2f}  ← low response, scene lost; stopping")
+            rig.servo(sid, angle - step * (BACKOFF_DEG // STEP_DEG))
+            return None, "scene lost"
+        if len(shifts) < CALIBRATION_STEPS:
+            shifts.append(moved)
+            print(f"  {angle:4d}°  shift {moved:5.2f} px  (calibrating)")
+            if len(shifts) == CALIBRATION_STEPS and statistics.median(shifts) < MIN_STEP_PX:
+                # can't see normal steps → "no movement" would be meaningless
+                rig.servo(sid, 90)
+                print(f"  calibration steps only shift {statistics.median(shifts):.2f} px "
+                      f"(< {MIN_STEP_PX}) — scene too plain or camera not moving; skipping")
+                return None, "no visible movement"
+            continue
+        normal = statistics.median(shifts)
+        if moved < STALL_FRACTION * normal:
+            still += 1
+            if still >= STALL_STEPS:
+                stop = angle - step * STALL_STEPS   # last angle that still moved the head
                 rig.servo(sid, angle - step * (BACKOFF_DEG // STEP_DEG))
-                held = time.monotonic() - t0
-                print(f"  {angle:4d}°  dip {dip*1000:6.1f} / {dip2*1000:6.1f} mV  ← STALL (held {held:.1f} s, backed off)")
-                return angle, dip2
-            flag = "  (spike, not confirmed)"
-        dips.append(dip)
-        print(f"  {angle:4d}°  dip {dip*1000:6.1f} mV{flag}")
-    print(f"  no stall up to {target}°")
+                print(f"  {angle:4d}°  shift {moved:5.2f} px  ← no movement ×{STALL_STEPS}: stop ≈ {stop}° (backed off)")
+                return stop, None
+            print(f"  {angle:4d}°  shift {moved:5.2f} px  (no movement {still}/{STALL_STEPS})")
+        else:
+            still = 0
+            shifts.append(moved)
+            print(f"  {angle:4d}°  shift {moved:5.2f} px")
+    print(f"  no stop up to {target}°")
     return None, None
 
 
-def cmd_sweep(rig, bus, servos):
-    st, sigma_step = cmd_baseline(rig, bus)
-    assert 2 * STEP_SAMPLES / SAMPLE_HZ <= MAX_STALL_S + 1e-9
+def cmd_sweep(rig, servos, ends):
     old_lo, old_hi = rig.get_limits()
-    print(f"\nboard_node limits now: min {old_lo} max {old_hi} — opening to 0–180 for the sweep")
-    lidar_paused = rig.lidar(Transition.TRANSITION_DEACTIVATE)
-    print("lidar paused" if lidar_paused else "lidar not paused (not running?)")
+    print(f"board_node limits now: min {old_lo} max {old_hi} — opening to 0–180 for the sweep")
     results = []
     try:
         rig.set_limits([0.0, 0.0], [180.0, 180.0])
         for sid in servos:
-            for target in (0, 180):
-                stop, dip = sweep_direction(rig, bus, sid, target, sigma_step, st["median"])
-                results.append((sid, target, stop, dip))
+            for target in ends:
+                stop, note = sweep_direction(rig, sid, target)
+                results.append((sid, target, stop, note))
     finally:
         centre(rig)
         rig.set_limits(old_lo, old_hi)
         print(f"\nlimits restored: min {old_lo} max {old_hi}")
-        if lidar_paused:
-            rig.lidar(Transition.TRANSITION_ACTIVATE)
-            print("lidar re-activated")
 
-    print("\nservo  end   stall at   dip      suggested limit (3° margin)")
-    for sid, target, stop, dip in results:
+    print("\nservo  end    stop     suggested limit (3° margin)")
+    for sid, target, stop, note in results:
         if stop is None:
-            print(f"  {sid} {SERVOS[sid]:4s} {target:3d}°   none       —        {target}°")
+            print(f"  {sid} {SERVOS[sid]:4s} {target:3d}°   none     {target}°" + (f"  ({note})" if note else ""))
         else:
             lim = stop + 3 if target == 0 else stop - 3
-            print(f"  {sid} {SERVOS[sid]:4s} {target:3d}°   {stop:3d}°    {dip*1000:5.0f} mV   {lim}°")
+            print(f"  {sid} {SERVOS[sid]:4s} {target:3d}°   {stop:3d}°     {lim}°")
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["baseline", "stall-test", "sweep"])
+    ap.add_argument("command", choices=["baseline", "sweep"])
     ap.add_argument("--servo", type=int, choices=[1, 2], action="append",
                     help="servo(s) to sweep (default: both; 1=tilt, 2=pan)")
+    ap.add_argument("--end", choices=["low", "high"], action="append",
+                    help="end(s) to sweep towards: low = 0°, high = 180° (default: both)")
     args = ap.parse_args()
 
     rig = Rig()
     try:
-        with SMBus(1) as bus:
-            if args.command == "baseline":
-                cmd_baseline(rig, bus)
-            elif args.command == "stall-test":
-                cmd_stall_test(rig, bus)
-            else:
-                cmd_sweep(rig, bus, args.servo or [1, 2])
+        if args.command == "baseline":
+            cmd_baseline(rig)
+        else:
+            ends = [{"low": 0, "high": 180}[e] for e in (args.end or ["low", "high"])]
+            cmd_sweep(rig, args.servo or [1, 2], ends)
     finally:
         rig.close()
 
