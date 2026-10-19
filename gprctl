@@ -75,7 +75,7 @@ tmux new-window -t "$SESSION" -n "camera" "$SHELL_CMD"
 tmux send-keys -t "$SESSION:camera" \
   "$SETUP && (test -e $CAMERA_DEV && echo 'Camera found at $CAMERA_DEV' \
   || echo 'WARNING: $CAMERA_DEV not found — camera_node will fail to configure') \
-  && ros2 run gogopi_bringup camera_node --ros-args -p camera_device:=$CAMERA_DEV" Enter
+  && ros2 run gogopi_bringup camera_node --ros-args -p camera_device:=$CAMERA_DEV -p image_rotation:=90" Enter
 
 # 6: lidar_node — check /dev/ydlidar first, then start node
 tmux new-window -t "$SESSION" -n "lidar" "$SHELL_CMD"

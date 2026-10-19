@@ -20,6 +20,13 @@ fight the sweep. Point the camera at a scene with detail (not a blank wall).
     tools/pt_range_check.py sweep --servo 1 --end low   # one direction (tilt down)
     tools/pt_range_check.py sweep                    # both servos, both ends
     tools/pt_range_check.py sweep --servo 1 --end low --beep-at 14   # beep at 14° to watch
+    tools/pt_range_check.py level                    # tilt angle where the camera is level
+
+'level' needs world-vertical edges in view (shelf uprights, door frames, wall
+corners) and an upright image (camera_node image_rotation 90 on this robot).
+When the camera pitches, vertical edges converge (up → towards the top); at
+level they are parallel. It sweeps tilt within board_node's current limits,
+measures the convergence in each frame, and finds the zero crossing.
 
 Nothing is changed permanently: board_node's servo_min_deg/servo_max_deg are
 opened to 0–180 for the sweep and always restored afterwards.
@@ -248,6 +255,91 @@ def sweep_direction(rig, sid, target, beep_at=()):
     return None, None
 
 
+LEVEL_STEP_DEG = 3
+LEVEL_RANGE = (17, 60)       # servo 1 angles to sample for 'level'
+MAX_LINE_TILT_DEG = 20       # edges within this of image-vertical count as world-vertical
+MIN_LINES = 4
+
+
+def vertical_convergence(gray):
+    """Convergence k of near-vertical edges: k ≈ tan(pitch)/f (up > 0); n lines; lines."""
+    img = np.clip(gray, 0, 255).astype(np.uint8)
+    h, w = img.shape
+    edges = cv2.Canny(img, 50, 150)
+    segs = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=40,
+                           minLineLength=int(0.15 * h), maxLineGap=5)
+    cx = w / 2.0
+    num = den = 0.0
+    used = []
+    for x1, y1, x2, y2 in (segs[:, 0] if segs is not None else []):
+        dx, dy = float(x2 - x1), float(y2 - y1)
+        if abs(dy) < 1 or np.degrees(np.arctan2(abs(dx), abs(dy))) > MAX_LINE_TILT_DEG:
+            continue
+        xm = (x1 + x2) / 2.0 - cx
+        if abs(xm) < 0.1 * w:         # near the centre the slope carries no pitch information
+            continue
+        slope = dx / dy               # x change per row; same sign as xm when converging upward
+        length = float(np.hypot(dx, dy))
+        num += length * slope * xm
+        den += length * xm * xm
+        used.append((x1, y1, x2, y2))
+    k = num / den if den > 0 else float("nan")
+    return k, len(used), used
+
+
+def cmd_level(rig):
+    lo_lim, hi_lim = rig.get_limits()
+    a0 = max(LEVEL_RANGE[0], int(np.ceil(lo_lim[0])))
+    a1 = min(LEVEL_RANGE[1], int(hi_lim[0]))
+    angles = list(range(a0, a1 + 1, LEVEL_STEP_DEG))
+    print(f"Level search: tilt {a0}–{a1}° in {LEVEL_STEP_DEG}° steps, pan 90°")
+    rig.servo(2, 90)
+    rig.servo(1, angles[0])
+    time.sleep(1.5)
+    rows, prev, px_per_deg = [], None, []
+    for a in angles:
+        rig.servo(1, a)
+        t = time.monotonic()
+        time.sleep(SETTLE_S)
+        g = rig.frame_after(t + SETTLE_S)
+        if prev is not None:
+            dx, dy, _ = shift(prev, g)
+            px_per_deg.append(float(np.hypot(dx, dy)) / LEVEL_STEP_DEG)
+        prev = g
+        k, n, _ = vertical_convergence(g)
+        rows.append((a, k, n))
+    ppd = statistics.median(px_per_deg[1:] or px_per_deg)   # skip the first (backlash) step
+    f = ppd / np.tan(np.radians(1.0))
+    print(f"  image moves {ppd:.2f} px/° (work width {WORK_WIDTH}) → focal length ≈ {f:.0f} px")
+    print("  tilt   lines   convergence   pitch")
+    for a, k, n in rows:
+        pitch = np.degrees(np.arctan(k * f)) if n >= MIN_LINES else float("nan")
+        print(f"  {a:4d}°   {n:4d}    {k*1e4:+8.2f}e-4   {pitch:+6.1f}°" + ("" if n >= MIN_LINES else "  (too few lines)"))
+    good = [(a, np.degrees(np.arctan(k * f))) for a, k, n in rows if n >= MIN_LINES]
+    if len(good) < 3:
+        sys.exit("Too few frames with enough vertical edges — point the camera at shelving / door frames.")
+    xa = np.array([a for a, _ in good], float)
+    yp = np.array([p for _, p in good], float)
+    slope, icpt = np.polyfit(xa, yp, 1)
+    resid = yp - (slope * xa + icpt)
+    level = -icpt / slope
+    print(f"\n  pitch ≈ {slope:+.2f}°/servo° × angle {icpt:+.1f}°   (fit residual σ {resid.std():.1f}°; expect slope ≈ +1)")
+    where = "inside" if a0 <= level <= a1 else "OUTSIDE (extrapolated)"
+    print(f"  level at tilt servo ≈ {level:.1f}°  — {where} the sampled range {a0}–{a1}°")
+    print(f"  at tilt 90° (centre) the camera points ≈ {slope * 90 + icpt:+.0f}°")
+    target = int(round(min(max(level, a0), a1)))
+    rig.servo(1, target)
+    t = time.monotonic()
+    time.sleep(SETTLE_S)
+    g = rig.frame_after(t + SETTLE_S)
+    k, n, used = vertical_convergence(g)
+    vis = cv2.cvtColor(np.clip(g, 0, 255).astype(np.uint8), cv2.COLOR_GRAY2BGR)
+    for x1, y1, x2, y2 in used:
+        cv2.line(vis, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 1)
+    cv2.imwrite("/tmp/pt_level.jpg", vis)
+    print(f"  camera left at tilt {target}°; frame with the {n} edges used: /tmp/pt_level.jpg")
+
+
 def cmd_sweep(rig, servos, ends, beep_at=()):
     old_lo, old_hi = rig.get_limits()
     print(f"board_node limits now: min {old_lo} max {old_hi} — opening to 0–180 for the sweep")
@@ -274,7 +366,7 @@ def cmd_sweep(rig, servos, ends, beep_at=()):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["baseline", "sweep"])
+    ap.add_argument("command", choices=["baseline", "sweep", "level"])
     ap.add_argument("--servo", type=int, choices=[1, 2], action="append",
                     help="servo(s) to sweep (default: both; 1=tilt, 2=pan)")
     ap.add_argument("--end", choices=["low", "high"], action="append",
@@ -287,6 +379,8 @@ def main():
     try:
         if args.command == "baseline":
             cmd_baseline(rig)
+        elif args.command == "level":
+            cmd_level(rig)
         else:
             ends = [{"low": 0, "high": 180}[e] for e in (args.end or ["low", "high"])]
             cmd_sweep(rig, args.servo or [1, 2], ends, set(args.beep_at))

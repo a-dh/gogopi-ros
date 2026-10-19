@@ -58,7 +58,7 @@ def generate_launch_description():
             parameters=[{
                 "camera_device": "/dev/v4l/by-id/usb-HBVCAM_CAMERA_HBVCAM_CAMERA-video-index0",
                 "frame_id": "camera_link",
-                "image_rotation": 0,
+                "image_rotation": 90,  # camera is mounted rolled 90° (up = image left)
             }],
         ),
 

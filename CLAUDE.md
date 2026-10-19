@@ -170,6 +170,8 @@ USB camera via OpenCV (`python3-opencv`). `on_configure` opens the device with `
 |---|---|---|
 | `/gogopi/camera/image_raw` | `sensor_msgs/Image` (`bgr8`) | PUB `image_hz` |
 
+The camera is mounted rolled 90° (world up = raw image left); `gprctl` and `robot.launch.py` set `image_rotation` 90 so the published image is upright.
+
 Parameters: `camera_device` (default `/dev/video0`; `gprctl` and `robot.launch.py` pass the by-id path above, which survives USB re-enumeration), `frame_id` (`camera_link`), `image_width` (640), `image_height` (480), `image_hz` (15.0), `image_rotation` (0/90/180/270).
 
 Published with a plain rclpy publisher, so no `/compressed` topic exists on the robot by default. Image-transport plugins only hook into C++ `image_transport` publishers.
