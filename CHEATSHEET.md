@@ -2,7 +2,7 @@
 
 ## Power, shutdown & buzzer
 
-**Hold KEY2 for 2 s** → safe shutdown. From a shell: `sudo poweroff`.
+**Hold KEY2 for ~2.5 s (a slow count of three) and keep holding until the buzzer starts** → safe shutdown. Shorter presses are ignored (it needs just over 2 s of continuous hold). From a shell: `sudo poweroff`.
 Unplug the battery once the Pi has shut down — the expansion board stays powered.
 
 | You hear | Meaning |
@@ -65,7 +65,7 @@ journalctl -u hw_wifi -b          # hw_wifi log for this boot
 | Button | Action |
 |---|---|
 | **KEY1** — hold 2 s | Restart `hw_wifi` service (WiFi factory reset) |
-| **KEY2** — hold 2 s | Safe shutdown (`systemctl poweroff`) |
+| **KEY2** — hold ~2.5 s, until the buzz | Safe shutdown (5 s buzz, then `systemctl poweroff`) |
 
 ---
 
