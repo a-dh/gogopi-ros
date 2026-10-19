@@ -20,7 +20,8 @@ gopiros2/
 │       ├── gogopi_msgs/   ← Custom msg/srv (CMake)
 │       └── gogopi_bringup/← Lifecycle nodes + launch files (ament_python)
 ├── tools/
-│   └── pt_range_check.py  ← find pan/tilt end stops using camera image shift (run on robot)
+│   ├── pt_range_check.py  ← pan/tilt end stops, level, scales (camera-based; run on robot)
+│   └── pt_lidar_stress.py ← swing pan hard, measure lidar glitches / battery / camera fps
 ├── pyproject.toml         ← gogopi-sdk pip package (HiwonderSDK) + gogopi-install entry point
 └── gogopi/install.py      ← console script: sudo gogopi-install install|remove
 ```
