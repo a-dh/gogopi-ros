@@ -309,11 +309,13 @@
     <limit lower="-3.14159" upper="3.14159" effort="1.0" velocity="1.0"/>
   </joint>
 
-  <!-- Tilt joint (servo 1) -->
+  <!-- Tilt joint (servo 1). Measured: tilt_joint = 0 (servo 90°, slider centred)
+       points the camera 45° UP, so the zero pose carries a −45° pitch (−y rotation
+       tips +x up). Servo mapping in board_node is unchanged. -->
   <joint name="tilt_joint" type="revolute">
     <parent link="pan_link"/>
     <child link="tilt_link"/>
-    <origin xyz="-0.012 0 0.0235" rpy="0 0 0"/>
+    <origin xyz="-0.012 0 0.0235" rpy="0 -0.7854 0"/>
     <axis xyz="0 1 0"/>
     <limit lower="-1.5708" upper="1.5708" effort="1.0" velocity="1.0"/>
   </joint>
