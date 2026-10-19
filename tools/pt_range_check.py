@@ -52,6 +52,10 @@ WORK_WIDTH = 320            # frames are downscaled to this width for correlatio
 
 SERVOS = {1: "tilt", 2: "pan"}
 PROBE_STEPS = 3             # baseline: steps per servo to reveal backlash vs. normal steps
+# Tilt servo 90° points the camera 45° up; there pan partly *twists* the image
+# (pure rotation when pointing straight up), which phase correlation can't see.
+# Level the camera for pan: tilt servo 45° (= tilt_joint +45° from its 45°-up zero).
+LEVEL_TILT_DEG = 45
 
 
 class Rig:
@@ -136,10 +140,15 @@ def shift(a, b):
     return dx, dy, resp
 
 
-def centre(rig):
-    rig.servo(1, 90)
+def centre(rig, tilt=90):
+    rig.servo(1, tilt)
     rig.servo(2, 90)
     time.sleep(1.5)
+
+
+def home_for(sid):
+    """Tilt to hold while moving servo sid: level camera for pan, centre otherwise."""
+    return LEVEL_TILT_DEG if sid == 2 else 90
 
 
 # ── commands ─────────────────────────────────────────────────────────────────
@@ -163,6 +172,7 @@ def cmd_baseline(rig):
     # a few probe steps per servo: shift a normal 2° step produces (a small first
     # step followed by normal ones = backlash/slack in the mount)
     for sid in (1, 2):
+        centre(rig, home_for(sid))
         prev = rig.frame_after(time.monotonic())
         for i in range(1, PROBE_STEPS + 1):
             rig.servo(sid, 90 + i * STEP_DEG)
@@ -181,7 +191,7 @@ def cmd_baseline(rig):
 
 def sweep_direction(rig, sid, target):
     step = STEP_DEG if target > 90 else -STEP_DEG
-    centre(rig)
+    centre(rig, home_for(sid))
     print(f"\n{SERVOS[sid]} (servo {sid}) 90° → {target}°")
     prev = rig.frame_after(time.monotonic())
     shifts = []
