@@ -34,30 +34,35 @@ SETUP="source /opt/ros/jazzy/setup.bash && source $WS/install/setup.bash && expo
 
 tmux kill-session -t "$SESSION" 2>/dev/null
 
+# Windows run bash without ~/.bashrc: its keychain call prompts for the SSH key
+# passphrase on a fresh boot, which swallowed the commands sent below (and adds a
+# 5 s lock wait). Each window sources ROS itself via $SETUP.
+SHELL_CMD="bash --norc"
+
 # 0: hardware health check (read-only — does not start services)
-tmux new-session -d -s "$SESSION" -n "daemons" -x 220 -y 50
+tmux new-session -d -s "$SESSION" -n "daemons" -x 220 -y 50 "$SHELL_CMD"
 tmux send-keys -t "$SESSION:daemons" \
   "/usr/bin/python3 $REPO/services/hw_check.py" Enter
 
 # 1: robot_state_publisher
-tmux new-window -t "$SESSION" -n "urdf"
+tmux new-window -t "$SESSION" -n "urdf" "$SHELL_CMD"
 tmux send-keys -t "$SESSION:urdf" \
   "$SETUP && ros2 launch /home/albertd/gopiros2/test_urdf.launch.py" Enter
 
 # 2: board_node — start node, wait for it to register, then configure + activate
-tmux new-window -t "$SESSION" -n "board"
+tmux new-window -t "$SESSION" -n "board" "$SHELL_CMD"
 tmux send-keys -t "$SESSION:board" \
   "$SETUP && ros2 run gogopi_bringup board_node" Enter
 
 # 3: sonar_node — probe I2C first, then start node
-tmux new-window -t "$SESSION" -n "sonar"
+tmux new-window -t "$SESSION" -n "sonar" "$SHELL_CMD"
 tmux send-keys -t "$SESSION:sonar" \
   "$SETUP && (python3 -c \"import smbus2; b=smbus2.SMBus(1); b.read_byte(0x77); b.close(); print('Sonar found at 0x77')\" 2>/dev/null \
   || echo 'WARNING: Sonar not detected at 0x77 — sonar_node will fail to configure') \
   && ros2 run gogopi_bringup sonar_node" Enter
 
 # 4: thermal_node — probe I2C first, then start node
-tmux new-window -t "$SESSION" -n "thermal"
+tmux new-window -t "$SESSION" -n "thermal" "$SHELL_CMD"
 tmux send-keys -t "$SESSION:thermal" \
   "$SETUP && (python3 -c \"import smbus2; b=smbus2.SMBus(1); b.read_byte(0x33); b.close(); print('MLX90640 found at 0x33')\" 2>/dev/null \
   || echo 'WARNING: MLX90640 not detected at 0x33 — thermal_node will fail to configure') \
@@ -66,14 +71,14 @@ tmux send-keys -t "$SESSION:thermal" \
 # 5: camera_node — check the camera's stable by-id path first, then start node
 #    (survives USB re-enumeration as /dev/videoN; camera_node reopens it)
 CAMERA_DEV="/dev/v4l/by-id/usb-HBVCAM_CAMERA_HBVCAM_CAMERA-video-index0"
-tmux new-window -t "$SESSION" -n "camera"
+tmux new-window -t "$SESSION" -n "camera" "$SHELL_CMD"
 tmux send-keys -t "$SESSION:camera" \
   "$SETUP && (test -e $CAMERA_DEV && echo 'Camera found at $CAMERA_DEV' \
   || echo 'WARNING: $CAMERA_DEV not found — camera_node will fail to configure') \
   && ros2 run gogopi_bringup camera_node --ros-args -p camera_device:=$CAMERA_DEV" Enter
 
 # 6: lidar_node — check /dev/ydlidar first, then start node
-tmux new-window -t "$SESSION" -n "lidar"
+tmux new-window -t "$SESSION" -n "lidar" "$SHELL_CMD"
 tmux send-keys -t "$SESSION:lidar" \
   "$SETUP && (test -e /dev/ydlidar && echo 'YDLidar found at /dev/ydlidar' \
   || echo 'WARNING: /dev/ydlidar not found — lidar_node will fail to configure') \
@@ -84,7 +89,7 @@ tmux send-keys -t "$SESSION:lidar" \
 # doesn't stop the rest from coming up. configure uses 'service call' because
 # it waits for the node to appear (shell startup can take >5 s on keychain lock).
 NODES="board_node sonar_node thermal_node camera_node lidar_node"
-tmux new-window -t "$SESSION" -n "shell"
+tmux new-window -t "$SESSION" -n "shell" "$SHELL_CMD"
 tmux send-keys -t "$SESSION:shell" \
   "$SETUP && sleep 4 \
   ; for n in $NODES; do timeout 30 ros2 service call /\$n/change_state lifecycle_msgs/srv/ChangeState '{transition: {id: 1}}'; done \
