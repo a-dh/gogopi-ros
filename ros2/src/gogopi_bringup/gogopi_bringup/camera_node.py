@@ -14,7 +14,8 @@ from rclpy.executors import ExternalShutdownException
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, State
 from sensor_msgs.msg import Image
 
-REOPEN_AFTER_FAILURES = 15   # consecutive failed reads (~1 s at 15 Hz) before reopening
+REOPEN_AFTER_S = 2.0         # no frame for this long → reopen (a failed read can
+                             # itself block ~10 s in V4L2 select())
 REOPEN_INTERVAL_S = 2.0      # min time between reopen attempts
 
 
@@ -33,6 +34,7 @@ class CameraNode(LifecycleNode):
         self._pub_image = None
         self._fail_count = 0
         self._last_reopen = 0.0
+        self._last_frame = 0.0
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         global cv2
@@ -65,6 +67,7 @@ class CameraNode(LifecycleNode):
             return False
         self.get_logger().info(f"Camera opened: {device} ({width}x{height})")
         self._fail_count = 0
+        self._last_frame = time.monotonic()
         return True
 
     def _try_reopen(self):
@@ -113,9 +116,10 @@ class CameraNode(LifecycleNode):
             self._fail_count += 1
             if self._fail_count == 1:
                 self.get_logger().warning("Camera read failed")
-            if self._fail_count >= REOPEN_AFTER_FAILURES:
+            if time.monotonic() - self._last_frame >= REOPEN_AFTER_S:
                 self._try_reopen()
             return
+        self._last_frame = time.monotonic()
         if self._fail_count:
             self.get_logger().info(f"Camera frames resumed after {self._fail_count} failed reads")
             self._fail_count = 0

@@ -160,7 +160,7 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 
 ### camera_node — `gogopi_bringup/camera_node.py`
 
-USB camera via OpenCV (`python3-opencv`). `on_configure` opens the device with `cv2.CAP_V4L2` (forced, so GStreamer doesn't intercept the device path) and sets the resolution. `on_activate` starts the capture timer. `on_cleanup`/`on_shutdown` release the device. After 15 consecutive failed reads (~1 s) it releases and reopens the device (at most every 2 s) — the camera can drop off USB and come back as a different `/dev/videoN`.
+USB camera via OpenCV (`python3-opencv`). `on_configure` opens the device with `cv2.CAP_V4L2` (forced, so GStreamer doesn't intercept the device path) and sets the resolution. `on_activate` starts the capture timer. `on_cleanup`/`on_shutdown` release the device. If no frame has arrived for 2 s it releases and reopens the device (at most every 2 s) — the camera can drop off USB and come back as a different `/dev/videoN`.
 
 | Topic | Type | Direction |
 |---|---|---|
