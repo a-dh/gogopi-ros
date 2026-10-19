@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Swing the pan servo hard and look for side effects on the rest of the robot.
 
-Phases: idle → wide pan swings → fast small shake → idle. During each phase it
+Phases: idle → wide pan swings → fast pan shake → small tilt moves → fast tilt
+shake → idle. During each phase it
 records the lidar (/gogopi/lidar/scan), battery voltage and camera frame rate,
 and compares every lidar scan against the first idle phase:
 
@@ -34,11 +35,13 @@ from gogopi_msgs.msg import ServoCommand
 
 LEVEL_TILT_DEG = 28
 PHASES = [
-    # name, seconds, pan pattern (list of angles cycled), seconds per target
-    ("idle-1", 15.0, None, None),
-    ("wide 15↔165", 20.0, [15, 165], 0.3),
-    ("shake 80↔100", 10.0, [80, 100], 0.1),
-    ("idle-2", 15.0, None, None),
+    # name, seconds, servo (1 tilt / 2 pan), angles cycled, seconds per target
+    ("idle-1", 15.0, None, None, None),
+    ("pan 15↔165", 20.0, 2, [15, 165], 0.3),
+    ("pan 80↔100", 10.0, 2, [80, 100], 0.1),
+    ("tilt 22↔34", 15.0, 1, [22, 34], 0.2),
+    ("tilt 26↔30", 10.0, 1, [26, 30], 0.1),
+    ("idle-2", 15.0, None, None, None),
 ]
 GLITCH_ABS_M = 0.05
 GLITCH_REL = 0.03
@@ -97,7 +100,7 @@ def run_phases(rec):
     rec.servo(1, LEVEL_TILT_DEG)
     rec.servo(2, 90)
     time.sleep(1.5)
-    for name, secs, pattern, dwell in PHASES:
+    for name, secs, sid, pattern, dwell in PHASES:
         print(f"phase {name:14s} {secs:4.0f} s …", flush=True)
         with rec.lock:
             rec.phase = name
@@ -105,13 +108,14 @@ def run_phases(rec):
         i = 0
         while time.monotonic() < end:
             if pattern:
-                rec.servo(2, pattern[i % len(pattern)])
+                rec.servo(sid, pattern[i % len(pattern)])
                 i += 1
                 time.sleep(dwell)
             else:
                 time.sleep(0.1)
         with rec.lock:
             rec.phase = None
+        rec.servo(1, LEVEL_TILT_DEG)
         rec.servo(2, 90)
         time.sleep(1.0)   # let the head settle between phases (not recorded)
 
@@ -135,7 +139,7 @@ def analyse(rec):
     print("\nphase            scans  rate Hz  max gap s  valid pts  noise mm  glitch bins/scan (mean / max)"
           "  battery V (min / mean)  camera fps")
     sector = {}
-    for name, secs, _, _ in PHASES:
+    for name, secs, *_ in PHASES:
         sc = rec.scans.get(name, [])
         if not sc:
             print(f"  {name:14s}  no scans!")
@@ -165,7 +169,7 @@ def analyse(rec):
 
     # where do the extra glitches come from? compare stress phases with idle-2
     base = sector.get("idle-2")
-    for name in [p[0] for p in PHASES if p[2]]:
+    for name in [p[0] for p in PHASES if p[3]]:
         if name not in sector or base is None:
             continue
         n_ph = len(rec.scans.get(name, []))
