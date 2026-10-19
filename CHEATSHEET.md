@@ -3,7 +3,7 @@
 ## Power, shutdown & buzzer
 
 **Hold KEY2 for ~2.5 s (a slow count of three) and keep holding until the buzzer starts** → safe shutdown. Shorter presses are ignored (it needs just over 2 s of continuous hold). From a shell: `sudo poweroff`.
-Unplug the battery once the Pi has shut down — the expansion board stays powered.
+**Then, once the Pi has shut down** (buzz finished, activity LED stopped): **turn off the main power switch and/or unplug the LiPo** — the expansion board stays powered and keeps draining the battery otherwise.
 
 | You hear | Meaning |
 |---|---|
