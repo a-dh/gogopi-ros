@@ -11,13 +11,13 @@ Unplug the battery once the Pi has shut down — the expansion board stays power
 | **Short beep (0.25 s) every minute** | USB power only — main board switch off / no battery. Motors and servos won't work. Mute: `touch /tmp/gogopi-mute` (unmute: `rm /tmp/gogopi-mute`; reboot also unmutes) |
 | nothing | Battery present and OK (or `hw_button_scan` not running) |
 
-Battery monitor (`hw_button_scan`, 2S LiPo, 10 readings per check, median):
+Battery monitor (`hw_button_scan`, 2S LiPo, 30 readings over ~3 s per check, median):
 
 | Battery | Action |
 |---|---|
 | ≥ 7.2 V | OK — checked every 10 min |
 | < 7.2 V | `wall` warning to all terminals |
-| < 6.8 V | critical → re-check after 30 s → if still < 6.8 V: 5 s buzz + poweroff |
+| < 6.8 V | critical → re-check every 30 s → 3 steady critical checks in a row: 5 s buzz + poweroff |
 | readings spread > 0.3 V or < 5.5 V | no battery (USB only) → beep, re-check every 60 s |
 
 Log: `journalctl -u hw_button_scan -b`

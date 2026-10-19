@@ -33,12 +33,13 @@ BAT_RECHECK_INTERVAL = 30    # seconds to the confirming check after a critical 
 BAT_WARN_V           = 7.2   # 2S LiPo: warn below this (3.6 V/cell)
 BAT_SHUTDOWN_V       = 6.8   # 2S LiPo: shutdown below this (3.4 V/cell)
 BAT_MIN_PLAUSIBLE    = 5.5   # median below this → no battery (USB-powered)
-BAT_SAMPLES          = 10    # readings per check, BAT_SAMPLE_GAP s apart
-BAT_SAMPLE_GAP       = 0.1
-BAT_MAX_SPREAD       = 0.3   # V; wider max−min → ADC floating (main board switch
-                             # off / USB only: readings swing ~4.5–7.5 V)
+BAT_SAMPLES          = 30    # readings per check, BAT_SAMPLE_GAP s apart (~3 s):
+BAT_SAMPLE_GAP       = 0.1   # a floating input can look steady for ~1 s, rarely for 3
+BAT_MAX_SPREAD       = 0.3   # V; wider max−min → ADC floating (no battery / USB only:
+                             # readings swing ~4.5–8.3 V)
+BAT_CRITICAL_CHECKS  = 3     # consecutive steady critical checks before shutdown
 
-_bat_critical_count = 0      # consecutive critical checks; shutdown needs 2
+_bat_critical_count = 0      # consecutive critical checks
 _usb_powered = None          # last detected power source; log only on change
 
 
@@ -94,8 +95,9 @@ def battery_check(log):
     _usb_powered = False
     if v < BAT_SHUTDOWN_V:
         _bat_critical_count += 1
-        if _bat_critical_count < 2:
-            log.warning("Battery critical: %s — confirming in %d s", detail, BAT_RECHECK_INTERVAL)
+        if _bat_critical_count < BAT_CRITICAL_CHECKS:
+            log.warning("Battery critical (%d/%d): %s — re-checking in %d s",
+                        _bat_critical_count, BAT_CRITICAL_CHECKS, detail, BAT_RECHECK_INTERVAL)
             return BAT_RECHECK_INTERVAL
         msg = (
             f"\n*** BATTERY CRITICAL: {v:.2f} V ***\n"
