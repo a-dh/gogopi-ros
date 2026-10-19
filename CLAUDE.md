@@ -124,7 +124,7 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 
 ### board_node — `gogopi_bringup/board_node.py`
 
-`on_configure` calls `Board.initialize()`. `on_activate` starts publish timers. `on_deactivate` stops motors and cancels timers. `on_cleanup`/`on_shutdown` calls `Board.cleanup()`.
+`on_configure` calls `Board.initialize()`. `on_activate` homes both servos to joint 0 (tilt 28° = level, pan 90°; `home_on_activate`, default true — the SDK can't read servo positions back) and starts publish timers. `on_deactivate` stops motors and cancels timers. `on_cleanup`/`on_shutdown` calls `Board.cleanup()`.
 
 | Topic / Service | Type | Direction |
 |---|---|---|

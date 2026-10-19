@@ -50,6 +50,10 @@ class BoardNode(LifecycleNode):
         # Pan: 1.0 (image shift per degree vs. focal length from a shelf of known width).
         self.declare_parameter("joint_zero_servo_deg", [28.0, 90.0])
         self.declare_parameter("joint_deg_per_servo_deg", [1.08, 1.0])
+        # On activate, drive both servos to joint 0 (tilt level, pan ahead). The SDK can't
+        # read servo positions back, so without this servo_state reports 0° until the first
+        # command while the head is really wherever it was left.
+        self.declare_parameter("home_on_activate", True)
 
         self._timers = []
         self._Board = None
@@ -110,6 +114,16 @@ class BoardNode(LifecycleNode):
             self.create_timer(hz("state_hz"), self._publish_state),
         ]
         self._active = True
+        if self.get_parameter("home_on_activate").value:
+            zero = self.get_parameter("joint_zero_servo_deg").value
+            for sid in (1, 2):
+                cmd = ServoCommand()
+                cmd.servo_id = sid
+                cmd.use_pulse = False
+                cmd.angle_deg = int(round(zero[sid - 1]))
+                cmd.move_time_ms = 0
+                self._apply_servo(cmd)
+            self.get_logger().info(f"Servos homed: tilt {zero[0]:.0f}° (level), pan {zero[1]:.0f}°")
         self.get_logger().info("Board active")
         return super().on_activate(state)
 
