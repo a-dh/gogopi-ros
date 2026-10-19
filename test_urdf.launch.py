@@ -12,6 +12,9 @@ def generate_launch_description():
         Node(
             package="robot_state_publisher",
             executable="robot_state_publisher",
-            parameters=[{"robot_description": robot_description}]
+            parameters=[{"robot_description": robot_description}],
+            # TF follows the real servo positions; /joint_states is the GUI's
+            # command topic (board_node → servos), same as robot.launch.py
+            remappings=[("/joint_states", "/gogopi/servo_state")],
         )
     ])

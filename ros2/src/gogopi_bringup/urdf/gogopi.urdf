@@ -267,6 +267,9 @@
     </inertial>
   </link>
 
+  <!-- Sonar (frame for /gogopi/sonar/range; +x = beam direction) -->
+  <link name="sonar_link"/>
+
   <!-- Joints -->
   <!-- Wheels -->
   <joint name="wheel_front_left_joint" type="continuous">
@@ -337,6 +340,14 @@
     <parent link="base_link"/>
     <child link="lidar_link"/>
     <origin xyz="0.0295 0 0.0965" rpy="0 0 3.14159"/>
+  </joint>
+
+  <!-- Sonar: PLACEHOLDER — module not mounted yet. Front face of base, centreline,
+       mid-height. Measure and update once it's fixed to the robot. -->
+  <joint name="sonar_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="sonar_link"/>
+    <origin xyz="0.0665 0 0.0155" rpy="0 0 0"/>
   </joint>
 
 </robot>

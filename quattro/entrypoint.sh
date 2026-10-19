@@ -2,13 +2,11 @@
 set -e
 source /opt/ros/jazzy/setup.bash
 
-URDF="$(cat /config/gogopi.urdf)"
+# No robot_state_publisher here: the robot's (gprctl urdf window) publishes
+# /robot_description and TF from the real servo positions (/gogopi/servo_state).
 
-# robot_state_publisher — publishes TF from URDF + /joint_states
-ros2 run robot_state_publisher robot_state_publisher \
-  --ros-args -p robot_description:="$URDF" &
-
-# joint_state_publisher_gui — slider GUI, drives /joint_states
+# joint_state_publisher_gui — slider GUI, drives /joint_states → board_node moves
+# the pan/tilt servos. Reads the URDF from the robot's /robot_description topic.
 ros2 run joint_state_publisher_gui joint_state_publisher_gui &
 
 # rviz2 — foreground, exit closes the container
