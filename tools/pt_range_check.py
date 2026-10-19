@@ -72,7 +72,8 @@ class Rig:
         rclpy.init()
         self.node = rclpy.create_node("pt_range_check")
         self._lock = threading.Lock()
-        self._frame = None          # (monotonic receive time, grayscale float32)
+        self._frame = None          # (monotonic receive time, grayscale float32 @ WORK_WIDTH)
+        self._full = None           # full-resolution grayscale uint8 of the same frame
         self.node.create_subscription(Image, "/gogopi/camera/image_raw", self._on_image, 2)
         self._exec = SingleThreadedExecutor()
         self._exec.add_node(self.node)
@@ -93,20 +94,21 @@ class Rig:
         if msg.encoding != "bgr8":
             return
         img = np.frombuffer(bytes(msg.data), np.uint8).reshape(msg.height, msg.width, 3)
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        h = int(gray.shape[0] * WORK_WIDTH / gray.shape[1])
-        gray = cv2.resize(gray, (WORK_WIDTH, h), interpolation=cv2.INTER_AREA).astype(np.float32)
+        full = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        h = int(full.shape[0] * WORK_WIDTH / full.shape[1])
+        gray = cv2.resize(full, (WORK_WIDTH, h), interpolation=cv2.INTER_AREA).astype(np.float32)
         with self._lock:
             self._frame = (time.monotonic(), gray)
+            self._full = full
 
-    def frame_after(self, t, timeout=3.0):
-        """First frame received after monotonic time t."""
+    def frame_after(self, t, timeout=3.0, full=False):
+        """First frame received after monotonic time t (work-size float, or full-res uint8)."""
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             with self._lock:
-                f = self._frame
+                f, g = self._frame, self._full
             if f is not None and f[0] > t:
-                return f[1]
+                return (f[1], g) if full else f[1]
             time.sleep(0.02)
         sys.exit("No camera frames — is camera_node active?")
 
@@ -262,7 +264,8 @@ MIN_LINES = 4
 
 
 def vertical_convergence(gray):
-    """Convergence k of near-vertical edges: k ≈ tan(pitch)/f (up > 0); n lines; lines."""
+    """Near-vertical edges' convergence sums: k = num/den ≈ tan(pitch)/f (up > 0).
+    Returns (num, den, lines) so several frames can be pooled."""
     img = np.clip(gray, 0, 255).astype(np.uint8)
     h, w = img.shape
     edges = cv2.Canny(img, 50, 150)
@@ -283,61 +286,75 @@ def vertical_convergence(gray):
         num += length * slope * xm
         den += length * xm * xm
         used.append((x1, y1, x2, y2))
-    k = num / den if den > 0 else float("nan")
-    return k, len(used), used
+    return num, den, used
 
 
-def cmd_level(rig):
+def cmd_level(rig, a_from, a_to, step, frames):
     lo_lim, hi_lim = rig.get_limits()
-    a0 = max(LEVEL_RANGE[0], int(np.ceil(lo_lim[0])))
-    a1 = min(LEVEL_RANGE[1], int(hi_lim[0]))
-    angles = list(range(a0, a1 + 1, LEVEL_STEP_DEG))
-    print(f"Level search: tilt {a0}–{a1}° in {LEVEL_STEP_DEG}° steps, pan 90°")
+    a0 = max(a_from, int(np.ceil(lo_lim[0])))
+    a1 = min(a_to, int(hi_lim[0]))
+    angles = list(range(a0, a1 + 1, step))
+    print(f"Level search: tilt {a0}–{a1}° in {step}° steps, {frames} frame(s) per step, pan 90°")
     rig.servo(2, 90)
-    rig.servo(1, angles[0])
+    rig.servo(1, angles[0] - 3 if angles[0] - 3 >= lo_lim[0] else angles[0])
     time.sleep(1.5)
-    rows, prev, px_per_deg = [], None, []
+    rows, prev, px_per_deg, full_w = [], None, [], None
     for a in angles:
         rig.servo(1, a)
         t = time.monotonic()
         time.sleep(SETTLE_S)
-        g = rig.frame_after(t + SETTLE_S)
-        if prev is not None:
-            dx, dy, _ = shift(prev, g)
-            px_per_deg.append(float(np.hypot(dx, dy)) / LEVEL_STEP_DEG)
-        prev = g
-        k, n, _ = vertical_convergence(g)
-        rows.append((a, k, n))
-    ppd = statistics.median(px_per_deg[1:] or px_per_deg)   # skip the first (backlash) step
+        num = den = 0.0
+        n = 0
+        for i in range(frames):
+            g, full = rig.frame_after(t + SETTLE_S, full=True)
+            t = time.monotonic()
+            full_w = full.shape[1]
+            if i == 0:
+                if prev is not None:
+                    dx, dy, _ = shift(prev, g)
+                    px_per_deg.append(float(np.hypot(dx, dy)) / step)
+                prev = g
+            fn, fd, used = vertical_convergence(full)
+            num, den, n = num + fn, den + fd, n + len(used)
+        rows.append((a, num / den if den > 0 else float("nan"), n / frames))
+    # focal length at full resolution, from the image shift per servo degree (assumes 1°/°)
+    ppd = statistics.median(px_per_deg[1:] or px_per_deg) * full_w / WORK_WIDTH
     f = ppd / np.tan(np.radians(1.0))
-    print(f"  image moves {ppd:.2f} px/° (work width {WORK_WIDTH}) → focal length ≈ {f:.0f} px")
-    print("  tilt   lines   convergence   pitch")
+    print(f"  image moves {ppd:.1f} px/° at full res ({full_w} px wide) → focal length ≈ {f:.0f} px")
+    print("  tilt   lines/frame   convergence     pitch")
     for a, k, n in rows:
-        pitch = np.degrees(np.arctan(k * f)) if n >= MIN_LINES else float("nan")
-        print(f"  {a:4d}°   {n:4d}    {k*1e4:+8.2f}e-4   {pitch:+6.1f}°" + ("" if n >= MIN_LINES else "  (too few lines)"))
-    good = [(a, np.degrees(np.arctan(k * f))) for a, k, n in rows if n >= MIN_LINES]
+        ok = n >= MIN_LINES
+        pitch = np.degrees(np.arctan(k * f)) if ok else float("nan")
+        print(f"  {a:4d}°   {n:6.1f}      {k*1e4:+8.3f}e-4   {pitch:+6.1f}°" + ("" if ok else "  (too few lines)"))
+    good = [(a, k) for a, k, n in rows if n >= MIN_LINES]
     if len(good) < 3:
         sys.exit("Too few frames with enough vertical edges — point the camera at shelving / door frames.")
     xa = np.array([a for a, _ in good], float)
-    yp = np.array([p for _, p in good], float)
-    slope, icpt = np.polyfit(xa, yp, 1)
-    resid = yp - (slope * xa + icpt)
-    level = -icpt / slope
-    print(f"\n  pitch ≈ {slope:+.2f}°/servo° × angle {icpt:+.1f}°   (fit residual σ {resid.std():.1f}°; expect slope ≈ +1)")
+    kk = np.array([k for _, k in good], float)
+    # zero crossing of k (independent of f): robust linear fit, drop >2.5σ outliers once
+    sl, ic = np.polyfit(xa, kk, 1)
+    r = kk - (sl * xa + ic)
+    keep = np.abs(r) <= 2.5 * r.std() if r.std() > 0 else np.ones_like(r, bool)
+    sl, ic = np.polyfit(xa[keep], kk[keep], 1)
+    r = kk[keep] - (sl * xa[keep] + ic)
+    level = -ic / sl
+    # uncertainty of the zero crossing from the fit residuals
+    se = r.std() / (abs(sl) * np.sqrt(keep.sum())) if keep.sum() > 2 else float("nan")
+    pitch_slope = np.degrees(np.arctan(sl * f))
     where = "inside" if a0 <= level <= a1 else "OUTSIDE (extrapolated)"
-    print(f"  level at tilt servo ≈ {level:.1f}°  — {where} the sampled range {a0}–{a1}°")
-    print(f"  at tilt 90° (centre) the camera points ≈ {slope * 90 + icpt:+.0f}°")
+    print(f"\n  fit on {keep.sum()}/{len(good)} steps: level at tilt servo ≈ {level:.1f}° ± {se:.1f}°  ({where} {a0}–{a1}°)")
+    print(f"  pitch changes ≈ {pitch_slope:.2f}° per servo° (≈1 expected if f and servo are both 1:1)")
     target = int(round(min(max(level, a0), a1)))
     rig.servo(1, target)
     t = time.monotonic()
     time.sleep(SETTLE_S)
-    g = rig.frame_after(t + SETTLE_S)
-    k, n, used = vertical_convergence(g)
-    vis = cv2.cvtColor(np.clip(g, 0, 255).astype(np.uint8), cv2.COLOR_GRAY2BGR)
+    _, full = rig.frame_after(t + SETTLE_S, full=True)
+    _, _, used = vertical_convergence(full)
+    vis = cv2.cvtColor(full, cv2.COLOR_GRAY2BGR)
     for x1, y1, x2, y2 in used:
-        cv2.line(vis, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 1)
+        cv2.line(vis, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 2)
     cv2.imwrite("/tmp/pt_level.jpg", vis)
-    print(f"  camera left at tilt {target}°; frame with the {n} edges used: /tmp/pt_level.jpg")
+    print(f"  camera left at tilt {target}°; frame with the {len(used)} edges used: /tmp/pt_level.jpg")
 
 
 def cmd_sweep(rig, servos, ends, beep_at=()):
@@ -371,6 +388,10 @@ def main():
                     help="servo(s) to sweep (default: both; 1=tilt, 2=pan)")
     ap.add_argument("--end", choices=["low", "high"], action="append",
                     help="end(s) to sweep towards: low = 0°, high = 180° (default: both)")
+    ap.add_argument("--from", dest="a_from", type=int, default=LEVEL_RANGE[0], help="level: first tilt angle")
+    ap.add_argument("--to", dest="a_to", type=int, default=LEVEL_RANGE[1], help="level: last tilt angle")
+    ap.add_argument("--step", type=int, default=LEVEL_STEP_DEG, help="level: tilt step (°)")
+    ap.add_argument("--frames", type=int, default=1, help="level: frames pooled per step")
     ap.add_argument("--beep-at", type=int, action="append", default=[], metavar="DEG",
                     help="short buzzer beep when the sweep commands this angle (repeatable)")
     args = ap.parse_args()
@@ -380,7 +401,7 @@ def main():
         if args.command == "baseline":
             cmd_baseline(rig)
         elif args.command == "level":
-            cmd_level(rig)
+            cmd_level(rig, args.a_from, args.a_to, args.step, args.frames)
         else:
             ends = [{"low": 0, "high": 180}[e] for e in (args.end or ["low", "high"])]
             cmd_sweep(rig, args.servo or [1, 2], ends, set(args.beep_at))
