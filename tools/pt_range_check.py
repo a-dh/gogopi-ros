@@ -22,7 +22,7 @@ fight the sweep. Point the camera at a scene with detail (not a blank wall).
     tools/pt_range_check.py sweep --servo 1 --end low --beep-at 14   # beep at 14° to watch
     tools/pt_range_check.py level                    # tilt angle where the camera is level
     tools/pt_range_check.py pan-check                # confirm level: image twist while panning
-    tools/pt_range_check.py scale                    # real °/commanded ° for tilt and pan
+    tools/pt_range_check.py scale                    # tilt/pan px per commanded ° (see note)
 
 'level' needs world-vertical edges in view (shelf uprights, door frames, wall
 corners) and an upright image (camera_node image_rotation 90 on this robot).
@@ -63,7 +63,7 @@ WORK_WIDTH = 320            # frames are downscaled to this width for correlatio
 
 SERVOS = {1: "tilt", 2: "pan"}
 PROBE_STEPS = 3             # baseline: steps per servo to reveal backlash vs. normal steps
-# Tilt servo 90° points the camera ~41° up; there pan partly *twists* the image
+# Tilt servo 90° points the camera ~67° up; there pan partly *twists* the image
 # (pure rotation when pointing straight up), which phase correlation can't see.
 # Level the camera for pan: tilt servo 28° (measured with pan-check).
 LEVEL_TILT_DEG = 28
@@ -431,7 +431,11 @@ def cmd_pan_check(rig, tilts):
         print(f"  ⇒ tilt 90° (centre) points ≈ {sl * 90 + ic:+.0f}°")
 
 
-PANCHECK_PRODUCT = 0.66      # pan-check slope = tilt_scale × pan_scale (pan span taken as commanded)
+# NOTE: the s_tilt/s_pan split below assumes pan-check's slope = s_tilt·s_pan, which turned
+# out wrong on this robot (direct: tilt 1.08 by inclinometer, pan 1.0 from a shelf of known
+# width → product ≈ 1.1, not 0.66). Trust the px/° numbers, not the derived scales; get the
+# focal length from a known-width target instead.
+PANCHECK_PRODUCT = 0.66
 SCALE_STEPS = 6              # 2° steps per servo around level/centre
 
 

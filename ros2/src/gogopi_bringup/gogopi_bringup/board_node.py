@@ -44,11 +44,12 @@ class BoardNode(LifecycleNode):
         self.declare_parameter("servo_max_deg", [90.0, 180.0])
         # Servo angle ↔ URDF joint mapping (servo 1 = tilt_joint, +down; servo 2 = pan_joint):
         #   joint_deg = scale · (zero − servo)  for tilt,  scale · (servo − zero)  for pan
-        # Tilt measured with tools/pt_range_check.py pan-check: level at servo 28°, and the
-        # SG90 moves only ~0.66° per commanded degree (servo 90° ≈ 41° up). Pan scale not
-        # measured yet (1.0).
+        # Tilt: level at servo 28° (tools/pt_range_check.py pan-check: image twist while
+        # panning vanishes there); servo 90° measured ≈ 67° up with an inclinometer →
+        # 1.08° per commanded degree (cheap SG9 overshoots; camera-based estimate 1.13).
+        # Pan: 1.0 (image shift per degree vs. focal length from a shelf of known width).
         self.declare_parameter("joint_zero_servo_deg", [28.0, 90.0])
-        self.declare_parameter("joint_deg_per_servo_deg", [0.66, 1.0])
+        self.declare_parameter("joint_deg_per_servo_deg", [1.08, 1.0])
 
         self._timers = []
         self._Board = None

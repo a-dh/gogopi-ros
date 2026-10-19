@@ -144,13 +144,13 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 | `/gogopi/set_buzzer` | `std_srvs/SetBool` | SRV |
 | `/gogopi/e_stop` | `std_srvs/Trigger` | SRV |
 
-Servo travel limits: `servo_min_deg` [17, 0] / `servo_max_deg` [90, 180] (servo 1 tilt, servo 2 pan) clamp every servo command (angle, pulse, `/joint_states`). Tilt (measured with `tools/pt_range_check.py`): hard stop ~6°; a cable touches from ~14° (that's where the servo first sounded stalled). 17° keeps clear of the cable; 9° possible once the cable is rerouted. Tilt moves freely to the servo's 180°, but above 90° (camera ~41° up) panning binds the cables, so 90° is the practical max.
+Servo travel limits: `servo_min_deg` [17, 0] / `servo_max_deg` [90, 180] (servo 1 tilt, servo 2 pan) clamp every servo command (angle, pulse, `/joint_states`). Tilt (measured with `tools/pt_range_check.py`): hard stop ~6°; a cable touches from ~14° (that's where the servo first sounded stalled). 17° keeps clear of the cable; 9° possible once the cable is rerouted. Tilt moves freely to the servo's 180°, but above 90° (camera ~67° up) panning binds the cables, so 90° is the practical max.
 
-Servo ↔ joint mapping: `joint_zero_servo_deg` [28, 90] (servo angle where the joint is 0) and `joint_deg_per_servo_deg` [0.66, 1.0]. Tilt: `tilt_joint`° = 0.66 · (28 − servo°), +down, 0 = **level** (measured with `pt_range_check.py pan-check`: image twist while panning vanishes at servo 28°; the SG90 moves only ~0.66° per commanded degree, repeatability is low). Pan: `pan_joint`° = servo° − 90 (scale not measured). URDF `tilt_joint` limits −0.7142 … 0.1267 rad mirror the 90°/17° clamps; keep URDF and these parameters in sync.
+Servo ↔ joint mapping: `joint_zero_servo_deg` [28, 90] (servo angle where the joint is 0) and `joint_deg_per_servo_deg` [1.08, 1.0]. Tilt: `tilt_joint`° = 1.08 · (28 − servo°), +down, 0 = **level** (level from `pt_range_check.py pan-check`: image twist while panning vanishes at servo 28°; scale from an inclinometer: servo 90° ≈ 67° up; the SG9 repeatability is low). Pan: `pan_joint`° = servo° − 90 (1.0 measured from image shift vs. focal length from a shelf of known width). URDF `tilt_joint` limits −1.1687 … 0.2073 rad mirror the 90°/17° clamps; keep URDF and these parameters in sync.
 
 `cmd_vel` kinematic conversion: `left = v − ω·d/2`, `right = v + ω·d/2`, scaled by `max_speed_pct`. Parameters: `wheel_separation_m` (default 0.15), `max_speed_pct` (default 80).
 
-`/joint_states` maps URDF joint positions (radians) to servo angles with the inverse of that mapping (tilt servo = 28 − deg(pos)/0.66, pan servo = 90 + deg(pos)), the inverse of what `/gogopi/servo_state` publishes. Changes under 1° per servo are ignored, so a steady stream of messages doesn't keep re-sending the same command. It's ignored while the node is inactive.
+`/joint_states` maps URDF joint positions (radians) to servo angles with the inverse of that mapping (tilt servo = 28 − deg(pos)/1.08, pan servo = 90 + deg(pos)), the inverse of what `/gogopi/servo_state` publishes. Changes under 1° per servo are ignored, so a steady stream of messages doesn't keep re-sending the same command. It's ignored while the node is inactive.
 
 `battery_raw` publishes raw ADC counts; `battery_voltage` publishes the same value divided by 1000 (confirmed 1 mV/count).
 
