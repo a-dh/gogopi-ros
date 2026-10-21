@@ -66,7 +66,7 @@ class BoardNode(LifecycleNode):
         # command while the head is really wherever it was left.
         self.declare_parameter("home_on_activate", True)
         # Nav-light brightness (0-1, boot level = 1.0) while ROS holds the board but is idle.
-        self.declare_parameter("nav_light_idle_brightness", 0.2)
+        self.declare_parameter("nav_light_idle_brightness", 0.05)
 
         self._timers = []
         self._Board = None
