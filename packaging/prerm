@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-for svc in hw_wifi hw_button_scan; do
+for svc in hw_sonar_lights hw_wifi hw_button_scan; do
     systemctl stop "${svc}.service" || true
     systemctl disable "${svc}.service" || true
 done

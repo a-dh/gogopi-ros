@@ -5,10 +5,10 @@ Publishes ultrasonic range readings and controls the two NeoPixels
 on the Sonar module (I2C addr 0x77, smbus2).
 
 Lifecycle transitions:
-  configure  → create Sonar instance, pub/sub
+  configure  → create Sonar instance, nav lights dimmed (idle), pub/sub
   activate   → start range timer
   deactivate → cancel timer
-  cleanup / shutdown → no hardware resources to release (smbus2 opens/closes per call)
+  cleanup / shutdown → nav lights back to full (smbus2 opens/closes per call, nothing to release)
 """
 
 import time
@@ -21,6 +21,11 @@ from gogopi_msgs.msg import PixelArray
 from sensor_msgs.msg import Range
 from std_msgs.msg import UInt8
 
+# Sonar RGB nav lights: LED 0 = port (red), LED 1 = starboard (green), at their boot
+# level (services/hw_sonar_lights.py; 128 matches the hat NeoPixels at full).
+# sonar_node dims them (nav_light_idle_brightness) while it holds the sonar.
+NAV_LIGHTS = {0: (128, 0, 0), 1: (0, 128, 0)}
+
 
 class SonarNode(LifecycleNode):
     def __init__(self):
@@ -28,6 +33,8 @@ class SonarNode(LifecycleNode):
         self.declare_parameter("range_hz", 10.0)
         self.declare_parameter("frame_id", "sonar_link")
         self.declare_parameter("field_of_view_rad", 0.26)
+        # Nav-light brightness (0-1, boot level = 1.0) while ROS holds the sonar but is idle.
+        self.declare_parameter("nav_light_idle_brightness", 0.05)
 
         self._sonar = None
         self._timer = None
@@ -40,6 +47,7 @@ class SonarNode(LifecycleNode):
         try:
             self._sonar = Sonar()
             self._sonar.setRGBMode(0)  # manual colour control
+            self._show_nav_lights(self.get_parameter("nav_light_idle_brightness").value)
         except Exception as exc:
             self.get_logger().error(f"Sonar init failed: {exc}")
             return TransitionCallbackReturn.FAILURE
@@ -65,12 +73,27 @@ class SonarNode(LifecycleNode):
         return super().on_deactivate(state)
 
     def on_cleanup(self, state: State) -> TransitionCallbackReturn:
+        self._restore_nav_lights()
         self._sonar = None
         return TransitionCallbackReturn.SUCCESS
 
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:
+        if self._sonar:
+            self._restore_nav_lights()
         self._sonar = None
         return TransitionCallbackReturn.SUCCESS
+
+    def _show_nav_lights(self, brightness: float):
+        for idx, (r, g, b) in NAV_LIGHTS.items():
+            r, g, b = (round(c * brightness) for c in (r, g, b))
+            self._sonar.setPixelColor(idx, (r << 16) | (g << 8) | b)
+
+    def _restore_nav_lights(self):
+        try:
+            self._sonar.setRGBMode(0)
+            self._show_nav_lights(1.0)
+        except Exception as exc:
+            self.get_logger().warning(f"Sonar nav lights restore failed: {exc}")
 
     # ── publish callbacks ──────────────────────────────────────────────────
 

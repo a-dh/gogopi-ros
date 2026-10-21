@@ -1,0 +1,15 @@
+[Unit]
+Description=GoGoPi sonar nav lights (port red / starboard green) at boot
+# Early, like rpi-led-proxy; not ordered before networking so a missing sonar
+# (the script retries for 30 s) can't delay it.
+DefaultDependencies=no
+After=local-fs.target systemd-modules-load.service
+Before=shutdown.target
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/gogopi/venv/bin/python3 /opt/gogopi/services/hw_sonar_lights.py
+
+[Install]
+WantedBy=multi-user.target

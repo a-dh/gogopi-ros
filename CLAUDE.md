@@ -14,7 +14,8 @@ gopiros2/
 ├── services/              ← Standalone systemd services (run independently of ROS2)
 │   ├── hw_button_scan.py  ← KEY1 long-press=WiFi reset, KEY2 long-press=shutdown
 │   ├── hw_wifi.py         ← WiFi AP/client manager with LED status blink
-│   └── hw_find.py         ← UDP discovery beacon
+│   ├── hw_find.py         ← UDP discovery beacon
+│   └── hw_sonar_lights.py ← oneshot at boot: sonar RGBs port red / starboard green
 ├── ros2/                  ← Colcon workspace
 │   └── src/
 │       ├── gogopi_msgs/   ← Custom msg/srv (CMake)
@@ -106,7 +107,7 @@ Board.cleanup()      # release pigpiod connection
 
 **NeoPixels:** `setPixelColor(index, r, g, b)` buffers; `show(brightness=None)` sends all pixels to the `led-proxy` daemon at 47% brightness (`__RGB_BRIGHTNESS = 120/255`) unless given a 0–1 `brightness`.
 
-**Nav lights:** hat pixel 0 = starboard (green), pixel 1 = port (red). `rpi-led-proxy` (>= 1.1) starts right after `local-fs.target`, before `network-pre.target`, and shows them at full brightness via `LED_INIT_COLORS` from the drop-in `packaging/rpi-led-proxy-nav-lights.conf` (shipped in the gogopi-services .deb). `board_node` dims them to `nav_light_idle_brightness` (default 0.05) on configure (ROS in control, idle) and restores full on cleanup/shutdown.
+**Nav lights:** hat pixel 0 = starboard (green), pixel 1 = port (red). `rpi-led-proxy` (>= 1.1) starts right after `local-fs.target`, before `network-pre.target`, and shows them at full brightness via `LED_INIT_COLORS` from the drop-in `packaging/rpi-led-proxy-nav-lights.conf` (shipped in the gogopi-services .deb). `board_node` dims them to `nav_light_idle_brightness` (default 0.05) on configure (ROS in control, idle) and restores full on cleanup/shutdown. The Sonar module's RGBs mirror this the other way round — sonar LED 0 = port (red), LED 1 = starboard (green) — set at boot to 128 (matches the hat at full) by the oneshot `hw_sonar_lights` service and dimmed by `sonar_node`.
 
 ### Sonar.py — stateless per-call
 
@@ -160,7 +161,7 @@ Servo ↔ joint mapping: `joint_zero_servo_deg` [28, 90] (servo angle where the 
 
 ### sonar_node — `gogopi_bringup/sonar_node.py`
 
-`on_configure` creates `Sonar()` and sets RGB mode 0. `on_activate` starts 10 Hz range timer.
+`on_configure` creates `Sonar()`, sets RGB mode 0 and dims the sonar nav lights to `nav_light_idle_brightness` (0.05); `on_cleanup`/`on_shutdown` restore them to full. `on_activate` starts 10 Hz range timer.
 
 | Topic | Type | Direction |
 |---|---|---|

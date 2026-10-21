@@ -27,10 +27,12 @@ install -d \
 # Service scripts
 cp "$REPO_ROOT/services/hw_button_scan.py" "$STAGING/opt/gogopi/services/"
 cp "$REPO_ROOT/services/hw_wifi.py"        "$STAGING/opt/gogopi/services/"
+cp "$REPO_ROOT/services/hw_sonar_lights.py" "$STAGING/opt/gogopi/services/"
 
 # Systemd units
 cp "$REPO_ROOT/services/hw_button_scan.service" "$STAGING/lib/systemd/system/"
 cp "$REPO_ROOT/services/hw_wifi.service"        "$STAGING/lib/systemd/system/"
+cp "$REPO_ROOT/services/hw_sonar_lights.service" "$STAGING/lib/systemd/system/"
 
 # rpi-led-proxy drop-in: hat nav lights (starboard green / port red) from early boot
 cp "$REPO_ROOT/packaging/rpi-led-proxy-nav-lights.conf" \
