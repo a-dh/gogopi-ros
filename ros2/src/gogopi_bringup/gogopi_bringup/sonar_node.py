@@ -33,8 +33,10 @@ class SonarNode(LifecycleNode):
         self.declare_parameter("range_hz", 10.0)
         self.declare_parameter("frame_id", "sonar_link")
         self.declare_parameter("field_of_view_rad", 0.26)
-        # Shortest reliable reading (m); consumers discard readings below it
-        self.declare_parameter("range_min", 0.05)
+        # Hiwonder Glowy ultrasonic spec: 2–400 cm, 15° (= field_of_view_rad).
+        # Consumers discard readings outside [range_min, range_max].
+        self.declare_parameter("range_min", 0.02)
+        self.declare_parameter("range_max", 4.0)
         # Nav-light brightness (0-1, boot level = 1.0) while ROS holds the sonar but is idle.
         self.declare_parameter("nav_light_idle_brightness", 0.05)
 
@@ -112,7 +114,7 @@ class SonarNode(LifecycleNode):
         msg.radiation_type = Range.ULTRASOUND
         msg.field_of_view = self.get_parameter("field_of_view_rad").value
         msg.min_range = self.get_parameter("range_min").value
-        msg.max_range = 5.0
+        msg.max_range = self.get_parameter("range_max").value
         msg.range = dist_mm / 1000.0
         self._pub_range.publish(msg)
 
