@@ -101,7 +101,7 @@ Board.cleanup()      # release pigpiod connection
 **Hardware buses:**
 - I2C bus 1, address `0x7A`: expansion board (motors, servos, battery ADC)
 - I2C bus 1, address `0x77`: Sonar module (Sonar.py, smbus2)
-- GPIO via pigpiod: buzzer (BCM 6), LED1 (BCM 16, hw_wifi only — read-only in the SDK), LED2 (BCM 26), KEY1 (BCM 13), KEY2 (BCM 23)
+- GPIO via pigpiod: buzzer (BCM 6), LED1 (BCM 16, hw_wifi only — read-only in the SDK), LED2 (BCM 26, hw_button_scan only — read-only in the SDK), KEY1 (BCM 13), KEY2 (BCM 23)
 - WS281x via `rpi-led-proxy` Unix socket (`LEDClient` from the `rpi-led-proxy` package)
 
 **NeoPixels:** `setPixelColor(index, r, g, b)` buffers; `show()` sends all pixels to the `led-proxy` daemon at 47% brightness (`__RGB_BRIGHTNESS = 120/255`).
@@ -135,13 +135,13 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 | `/joint_states` | `sensor_msgs/JointState` | SUB → `tilt_joint`/`pan_joint` servos (from `joint_state_publisher_gui` in the quattro RViz container) |
 | `/gogopi/board_pixels` | `gogopi_msgs/PixelArray` | SUB |
 | `/gogopi/buzzer` | `std_msgs/Bool` | SUB |
-| `/gogopi/led2` | `std_msgs/Bool` | SUB |
 | `/gogopi/battery_raw` | `std_msgs/UInt16` | PUB 2 Hz |
 | `/gogopi/battery_voltage` | `std_msgs/Float32` | PUB 2 Hz (volts, confirmed 1 mV/count) |
 | `/gogopi/buttons` | `sensor_msgs/Joy` | PUB 50 Hz |
 | `/gogopi/servo_state` | `sensor_msgs/JointState` | PUB 10 Hz |
 | `/gogopi/motor_state` | `std_msgs/Float32MultiArray` | PUB 10 Hz |
 | `/gogopi/led1_state` | `std_msgs/Bool` | PUB 10 Hz (LED1 on; read-only, owned by `hw_wifi`) |
+| `/gogopi/led2_state` | `std_msgs/Bool` | PUB 10 Hz (LED2 on; read-only, owned by `hw_button_scan`) |
 | `/gogopi/set_servo` | `gogopi_msgs/srv/SetServo` | SRV |
 | `/gogopi/set_buzzer` | `std_srvs/SetBool` | SRV |
 | `/gogopi/e_stop` | `std_srvs/Trigger` | SRV |
@@ -201,6 +201,7 @@ Published scan is a 360-bin uniform grid (1°/bin) over −π … +π. Bins with
 - KEY2 (BCM 23) held 2 s → `systemctl poweroff`
 - Battery check every 10 min: 30 ADC samples over ~3 s (0x7A), median. Spread > 0.3 V or median < 5.5 V → no battery (USB only — the ADC floats ~4.5–8.3 V, and can look steady for ~1 s, so 3 s of samples). < 7.2 V → `wall` warning; < 6.8 V on three steady checks 30 s apart → poweroff
 - Buzzer (BCM 6): while USB-powered, checks every 60 s and beeps 0.25 s each time. Every shutdown (KEY2 or battery) buzzes 5 s, turns the buzzer off, then powers off. The buzzer works with the main board switch off. `touch /tmp/gogopi-mute` silences the USB beep only (cleared on reboot; `rm` to unmute)
+- LED2 (BCM 26, active-low) is reserved for this service, set at each battery check: USB-powered → slow blink (0.5 s on / 1.5 s off); < 7.2 V → 2 Hz blink; < 6.8 V → 5 Hz blink; OK → off. A thread toggles it (pigpio PWM can't go below 10 Hz)
 - Must start after `pigpiod.service` (declared in service file)
 
 **hw_wifi** (systemd service, uses pigpiod):

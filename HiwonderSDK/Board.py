@@ -36,16 +36,14 @@ _pixel_buffer = [(0, 0, 0)] * __RGB_COUNT
 
 BUZZER_PIN = 6    # BCM GPIO 6  / BOARD pin 31
 LED1_PIN = 16     # BCM GPIO 16 / BOARD pin 36 — owned by hw_wifi (WiFi status), read-only here
-LED2_PIN = 26     # BCM GPIO 26 / BOARD pin 37
+LED2_PIN = 26     # BCM GPIO 26 / BOARD pin 37 — owned by hw_button_scan (battery), read-only here
 KEY1_PIN = 13     # BCM GPIO 13 / BOARD pin 33
 KEY2_PIN = 23     # BCM GPIO 23 / BOARD pin 16
-
-_led2_state = LEDState.OFF.value
 
 
 def initialize():
     """Connect to pigpiod and configure all GPIO pins. Call before any other function."""
-    global pi, _led_client, _led2_state
+    global pi, _led_client
     pi = pigpio.pi()
     if not pi.connected:
         raise RuntimeError("Cannot connect to pigpiod — is the daemon running?")
@@ -53,9 +51,6 @@ def initialize():
     show()  # blank NeoPixels
     pi.set_mode(BUZZER_PIN, pigpio.OUTPUT)
     pi.write(BUZZER_PIN, 0)
-    _led2_state = LEDState.OFF.value
-    pi.set_mode(LED2_PIN, pigpio.OUTPUT)
-    pi.write(LED2_PIN, _led2_state)
     pi.set_mode(KEY1_PIN, pigpio.INPUT)
     pi.set_mode(KEY2_PIN, pigpio.INPUT)
     pi.set_pull_up_down(KEY1_PIN, pigpio.PUD_UP)
@@ -200,14 +195,13 @@ def getLed1():
     return pi.read(LED1_PIN)
 
 
-def setLed2(state):
-    global _led2_state
-    _led2_state = state.value if isinstance(state, LEDState) else (1 if state else 0)
-    pi.write(LED2_PIN, _led2_state)
-
-
 def getLed2():
-    return _led2_state
+    """LED2 belongs to hw_button_scan (battery status) and is never written here.
+
+    Returns the pin level, 0 = on, 1 = off (active-low); while it blinks, that's
+    the level at the moment of the read.
+    """
+    return pi.read(LED2_PIN)
 
 
 def getKey1():
@@ -292,14 +286,12 @@ if __name__ == "__main__":
 
     initialize()
     try:
-        setLed2(LEDState.ON)
         setPixelColor(0, 255, 0, 0)
         setPixelColor(1, 0, 255, 0)
         show()
         setBuzzer(1)
         time.sleep(1)
         setBuzzer(0)
-        setLed2(LEDState.OFF)
         setPixelColor(0, 0, 0, 255)
         setPixelColor(1, 255, 255, 255)
         show()

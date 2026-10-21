@@ -79,7 +79,16 @@ journalctl -u hw_wifi -b          # hw_wifi log for this boot
 | Very fast blink (100 Hz) | Client mode connecting |
 | Solid on | Connected (or no config — existing WiFi left as-is) |
 
-### LED2 — controlled by board_node
+### LED2 — power status (reserved for hw_button_scan; ROS nodes never write it)
+
+| Pattern | Meaning |
+|---|---|
+| Off | On battery, battery OK |
+| Slow blink (0.5 s on / 1.5 s off) | USB-powered, no battery (no motor power) |
+| Blink (2 Hz) | Battery low (< 7.2 V) — shut down soon |
+| Rapid blink (5 Hz) | Battery critical (< 6.8 V) — auto-shutdown pending |
+
+Updated at each battery check (every 60 s on USB, 10 min on battery, 30 s while critical).
 
 ---
 

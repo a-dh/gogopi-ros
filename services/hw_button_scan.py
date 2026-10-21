@@ -6,6 +6,8 @@ KEY2 (BCM 23, BOARD 16) held ~2 s  →  safe shutdown
 Battery monitor: beep 0.25 s every minute while USB-powered (no battery);
 5 s buzz before any shutdown (button or battery critical).
 `touch /tmp/gogopi-mute` silences the USB beep (not the shutdown buzz); cleared on reboot.
+LED2 (owned by this service): slow blink on USB power, fast blink on low battery,
+rapid blink on critical battery, off when the battery is OK.
 """
 
 import logging
@@ -13,18 +15,27 @@ import logging.handlers
 import os
 import subprocess
 import sys
+import threading
 import time
 import pigpio
 
 KEY1_PIN = 13  # BCM GPIO 13 / BOARD pin 33
 KEY2_PIN = 23  # BCM GPIO 23 / BOARD pin 16
 BUZZER_PIN = 6  # BCM GPIO 6 / BOARD pin 31, active high
+LED2_PIN = 26   # BCM GPIO 26 / BOARD pin 37, active low; owned by this service
 HOLD_COUNTS = 40  # 40 × 50 ms = 2 s
 
 USB_BEEP_INTERVAL    = 60    # seconds between USB-power reminder beeps (and checks)
 USB_BEEP_S           = 0.25
 MUTE_FILE            = "/tmp/gogopi-mute"  # exists → skip the USB beep
 SHUTDOWN_BUZZ_S      = 5.0
+
+# LED2 blink patterns (on s, off s); None = off. pigpio PWM can't go below 10 Hz,
+# so a thread toggles the pin.
+LED2_USB             = (0.5, 1.5)
+LED2_LOW             = (0.25, 0.25)
+LED2_CRITICAL        = (0.1, 0.1)
+_led2_pattern = None
 
 pi = None  # pigpio connection, set in __main__
 
@@ -52,6 +63,25 @@ def buzz(seconds):
         time.sleep(seconds)
     finally:
         pi.write(BUZZER_PIN, 0)
+
+
+def set_led2(pattern):
+    global _led2_pattern
+    _led2_pattern = pattern
+
+
+def _led2_loop():
+    while True:
+        pattern = _led2_pattern
+        if pattern is None:
+            pi.write(LED2_PIN, 1)
+            time.sleep(0.2)
+            continue
+        on_s, off_s = pattern
+        pi.write(LED2_PIN, 0)
+        time.sleep(on_s)
+        pi.write(LED2_PIN, 1)
+        time.sleep(off_s)
 
 
 def _battery_volts():
@@ -89,12 +119,14 @@ def battery_check(log):
             log.info("Battery: %s — no battery detected, USB-powered", detail)
         _usb_powered = True
         _bat_critical_count = 0
+        set_led2(LED2_USB)
         if not os.path.exists(MUTE_FILE):
             buzz(USB_BEEP_S)
         return USB_BEEP_INTERVAL
     _usb_powered = False
     if v < BAT_SHUTDOWN_V:
         _bat_critical_count += 1
+        set_led2(LED2_CRITICAL)
         if _bat_critical_count < BAT_CRITICAL_CHECKS:
             log.warning("Battery critical (%d/%d): %s — re-checking in %d s",
                         _bat_critical_count, BAT_CRITICAL_CHECKS, detail, BAT_RECHECK_INTERVAL)
@@ -118,8 +150,10 @@ def battery_check(log):
         )
         log.warning("Battery low: %s — wall warning sent", detail)
         subprocess.call(["wall", msg])
+        set_led2(LED2_LOW)
     else:
         log.info("Battery: %s", detail)
+        set_led2(None)
     return BAT_CHECK_INTERVAL
 
 
@@ -175,6 +209,9 @@ if __name__ == "__main__":
     pi.set_pull_up_down(KEY2_PIN, pigpio.PUD_UP)
     pi.set_mode(BUZZER_PIN, pigpio.OUTPUT)
     pi.write(BUZZER_PIN, 0)
+    pi.set_mode(LED2_PIN, pigpio.OUTPUT)
+    pi.write(LED2_PIN, 1)
+    threading.Thread(target=_led2_loop, daemon=True).start()
     logger.info("GPIO configured: KEY1=BCM%d KEY2=BCM%d", KEY1_PIN, KEY2_PIN)
 
     key1_pressed = False

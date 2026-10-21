@@ -88,6 +88,7 @@ class BoardNode(LifecycleNode):
         self._pub_servo_state = self.create_publisher(JointState, "/gogopi/servo_state", 10)
         self._pub_motor_state = self.create_publisher(Float32MultiArray, "/gogopi/motor_state", 10)
         self._pub_led1 = self.create_publisher(Bool, "/gogopi/led1_state", 10)
+        self._pub_led2 = self.create_publisher(Bool, "/gogopi/led2_state", 10)
 
         # subscribers
         self.create_subscription(Twist, "/gogopi/cmd_vel", self._cb_cmd_vel, 10)
@@ -95,7 +96,6 @@ class BoardNode(LifecycleNode):
         self.create_subscription(ServoCommand, "/gogopi/servo_cmd", self._cb_servo_cmd, 10)
         self.create_subscription(PixelArray, "/gogopi/board_pixels", self._cb_board_pixels, 10)
         self.create_subscription(Bool, "/gogopi/buzzer", self._cb_buzzer, 10)
-        self.create_subscription(Bool, "/gogopi/led2", self._cb_led2, 10)
         self.create_subscription(JointState, "/joint_states", self._cb_joint_states, 10)
 
         # services
@@ -187,8 +187,10 @@ class BoardNode(LifecycleNode):
         ]
         self._pub_servo_state.publish(s_msg)
 
-        # LED1 belongs to hw_wifi; read-only here (active-low; samples the blink if it's blinking)
+        # LED1/LED2 belong to hw_wifi/hw_button_scan; read-only here
+        # (active-low; samples the blink if it's blinking)
         self._pub_led1.publish(Bool(data=self._Board.getLed1() == 0))
+        self._pub_led2.publish(Bool(data=self._Board.getLed2() == 0))
 
     # ── subscriber callbacks ───────────────────────────────────────────────
 
@@ -227,10 +229,6 @@ class BoardNode(LifecycleNode):
 
     def _cb_buzzer(self, msg: Bool):
         self._Board.setBuzzer(1 if msg.data else 0)
-
-    def _cb_led2(self, msg: Bool):
-        from HiwonderSDK.Board import LEDState
-        self._Board.setLed2(LEDState.ON if msg.data else LEDState.OFF)
 
     def _cb_joint_states(self, msg: JointState):
         if not self._active:
@@ -357,10 +355,8 @@ class BoardNode(LifecycleNode):
                 self._Board.setPWMServoPulse(i, 0, 0)
             except:
                 pass
-        # Turn off buzzer and LED2
+        # Turn off buzzer (LED1/LED2 belong to hw_wifi/hw_button_scan)
         self._Board.setBuzzer(0)
-        from HiwonderSDK.Board import LEDState
-        self._Board.setLed2(LEDState.OFF)  # LED1 belongs to hw_wifi
         response.success = True
         response.message = "Entered power save mode: timers stopped, motors/servos disabled, outputs off"
         return response
