@@ -35,18 +35,17 @@ __RGB_BRIGHTNESS = 120 / 255.0
 _pixel_buffer = [(0, 0, 0)] * __RGB_COUNT
 
 BUZZER_PIN = 6    # BCM GPIO 6  / BOARD pin 31
-LED1_PIN = 16     # BCM GPIO 16 / BOARD pin 36
+LED1_PIN = 16     # BCM GPIO 16 / BOARD pin 36 — owned by hw_wifi (WiFi status), read-only here
 LED2_PIN = 26     # BCM GPIO 26 / BOARD pin 37
 KEY1_PIN = 13     # BCM GPIO 13 / BOARD pin 33
 KEY2_PIN = 23     # BCM GPIO 23 / BOARD pin 16
 
-_led1_state = LEDState.OFF.value
 _led2_state = LEDState.OFF.value
 
 
 def initialize():
     """Connect to pigpiod and configure all GPIO pins. Call before any other function."""
-    global pi, _led_client, _led1_state, _led2_state
+    global pi, _led_client, _led2_state
     pi = pigpio.pi()
     if not pi.connected:
         raise RuntimeError("Cannot connect to pigpiod — is the daemon running?")
@@ -54,10 +53,7 @@ def initialize():
     show()  # blank NeoPixels
     pi.set_mode(BUZZER_PIN, pigpio.OUTPUT)
     pi.write(BUZZER_PIN, 0)
-    _led1_state = LEDState.ON.value
     _led2_state = LEDState.OFF.value
-    pi.set_mode(LED1_PIN, pigpio.OUTPUT)
-    pi.write(LED1_PIN, _led1_state)
     pi.set_mode(LED2_PIN, pigpio.OUTPUT)
     pi.write(LED2_PIN, _led2_state)
     pi.set_mode(KEY1_PIN, pigpio.INPUT)
@@ -195,14 +191,13 @@ def setBuzzer(new_state):
     pi.write(BUZZER_PIN, new_state)
 
 
-def setLed1(state):
-    global _led1_state
-    _led1_state = state.value if isinstance(state, LEDState) else (1 if state else 0)
-    pi.write(LED1_PIN, _led1_state)
-
-
 def getLed1():
-    return _led1_state
+    """LED1 belongs to hw_wifi (WiFi status) and is never written here.
+
+    Returns the pin level, 0 = on, 1 = off (active-low); while hw_wifi blinks it,
+    that's the level at the moment of the read.
+    """
+    return pi.read(LED1_PIN)
 
 
 def setLed2(state):
@@ -297,7 +292,6 @@ if __name__ == "__main__":
 
     initialize()
     try:
-        setLed1(LEDState.ON)
         setLed2(LEDState.ON)
         setPixelColor(0, 255, 0, 0)
         setPixelColor(1, 0, 255, 0)
@@ -305,7 +299,6 @@ if __name__ == "__main__":
         setBuzzer(1)
         time.sleep(1)
         setBuzzer(0)
-        setLed1(LEDState.OFF)
         setLed2(LEDState.OFF)
         setPixelColor(0, 0, 0, 255)
         setPixelColor(1, 255, 255, 255)

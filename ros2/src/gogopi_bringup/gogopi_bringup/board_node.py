@@ -94,7 +94,6 @@ class BoardNode(LifecycleNode):
         self.create_subscription(ServoCommand, "/gogopi/servo_cmd", self._cb_servo_cmd, 10)
         self.create_subscription(PixelArray, "/gogopi/board_pixels", self._cb_board_pixels, 10)
         self.create_subscription(Bool, "/gogopi/buzzer", self._cb_buzzer, 10)
-        self.create_subscription(Bool, "/gogopi/led1", self._cb_led1, 10)
         self.create_subscription(Bool, "/gogopi/led2", self._cb_led2, 10)
         self.create_subscription(JointState, "/joint_states", self._cb_joint_states, 10)
 
@@ -225,10 +224,6 @@ class BoardNode(LifecycleNode):
     def _cb_buzzer(self, msg: Bool):
         self._Board.setBuzzer(1 if msg.data else 0)
 
-    def _cb_led1(self, msg: Bool):
-        from HiwonderSDK.Board import LEDState
-        self._Board.setLed1(LEDState.ON if msg.data else LEDState.OFF)
-
     def _cb_led2(self, msg: Bool):
         from HiwonderSDK.Board import LEDState
         self._Board.setLed2(LEDState.ON if msg.data else LEDState.OFF)
@@ -358,11 +353,10 @@ class BoardNode(LifecycleNode):
                 self._Board.setPWMServoPulse(i, 0, 0)
             except:
                 pass
-        # Turn off buzzer and LEDs
+        # Turn off buzzer and LED2
         self._Board.setBuzzer(0)
         from HiwonderSDK.Board import LEDState
-        self._Board.setLed1(LEDState.OFF)
-        self._Board.setLed2(LEDState.OFF)
+        self._Board.setLed2(LEDState.OFF)  # LED1 belongs to hw_wifi
         response.success = True
         response.message = "Entered power save mode: timers stopped, motors/servos disabled, outputs off"
         return response

@@ -101,7 +101,7 @@ Board.cleanup()      # release pigpiod connection
 **Hardware buses:**
 - I2C bus 1, address `0x7A`: expansion board (motors, servos, battery ADC)
 - I2C bus 1, address `0x77`: Sonar module (Sonar.py, smbus2)
-- GPIO via pigpiod: buzzer (BCM 6), LED1 (BCM 16), LED2 (BCM 26), KEY1 (BCM 13), KEY2 (BCM 23)
+- GPIO via pigpiod: buzzer (BCM 6), LED1 (BCM 16, hw_wifi only — read-only in the SDK), LED2 (BCM 26), KEY1 (BCM 13), KEY2 (BCM 23)
 - WS281x via `rpi-led-proxy` Unix socket (`LEDClient` from the `rpi-led-proxy` package)
 
 **NeoPixels:** `setPixelColor(index, r, g, b)` buffers; `show()` sends all pixels to the `led-proxy` daemon at 47% brightness (`__RGB_BRIGHTNESS = 120/255`).
@@ -135,7 +135,7 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 | `/joint_states` | `sensor_msgs/JointState` | SUB → `tilt_joint`/`pan_joint` servos (from `joint_state_publisher_gui` in the quattro RViz container) |
 | `/gogopi/board_pixels` | `gogopi_msgs/PixelArray` | SUB |
 | `/gogopi/buzzer` | `std_msgs/Bool` | SUB |
-| `/gogopi/led1` / `led2` | `std_msgs/Bool` | SUB |
+| `/gogopi/led2` | `std_msgs/Bool` | SUB |
 | `/gogopi/battery_raw` | `std_msgs/UInt16` | PUB 2 Hz |
 | `/gogopi/battery_voltage` | `std_msgs/Float32` | PUB 2 Hz (volts, confirmed 1 mV/count) |
 | `/gogopi/buttons` | `sensor_msgs/Joy` | PUB 50 Hz |
@@ -208,7 +208,7 @@ Published scan is a 360-bin uniform grid (1°/bin) over −π … +π. Bins with
   - Client mode connecting: very fast blink (5 ms / 5 ms)
   - Client connected: solid on
 - WiFi config in `/etc/Hiwonder/hiwonder_wifi_conf.py` or `/boot/hiwonder_wifi_conf.py`
-- **LED1 ownership**: `hw_wifi` and `board_node` both write LED1 through pigpiod. `hw_wifi` exits once WiFi is set up; `board_node` then takes ownership. Start `board_node` after WiFi is established.
+- **LED1 ownership**: LED1 is reserved for `hw_wifi`. The SDK has no `setLed1()` and never configures the pin; `Board.getLed1()` only reads the level. ROS nodes must not write it.
 
 ## gogopi_msgs custom types
 

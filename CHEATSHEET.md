@@ -71,7 +71,7 @@ journalctl -u hw_wifi -b          # hw_wifi log for this boot
 
 ## LEDs
 
-### LED1 — WiFi status (hw_wifi owns it until WiFi is up, then board_node takes over)
+### LED1 — WiFi status (reserved for hw_wifi; ROS nodes never write it)
 
 | Pattern | Meaning |
 |---|---|
