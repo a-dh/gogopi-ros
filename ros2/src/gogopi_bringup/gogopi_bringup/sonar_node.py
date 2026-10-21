@@ -33,8 +33,8 @@ class SonarNode(LifecycleNode):
         self.declare_parameter("range_hz", 10.0)
         self.declare_parameter("frame_id", "sonar_link")
         self.declare_parameter("field_of_view_rad", 0.26)
-        # This module reads nothing closer than ~0.5 m (consumers discard readings below it)
-        self.declare_parameter("range_min", 0.5)
+        # Shortest reliable reading (m); consumers discard readings below it
+        self.declare_parameter("range_min", 0.05)
         # Nav-light brightness (0-1, boot level = 1.0) while ROS holds the sonar but is idle.
         self.declare_parameter("nav_light_idle_brightness", 0.05)
 
