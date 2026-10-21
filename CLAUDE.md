@@ -161,6 +161,8 @@ Servo ↔ joint mapping: `joint_zero_servo_deg` [28, 90] (servo angle where the 
 
 ### sonar_node — `gogopi_bringup/sonar_node.py`
 
+Parameters: `range_hz` (10.0), `frame_id` (`sonar_link`), `field_of_view_rad` (0.26), `range_min` (0.5 m — this module reads nothing closer; `max_range` 5.0 m).
+
 `on_configure` creates `Sonar()`, sets RGB mode 0 and dims the sonar nav lights to `nav_light_idle_brightness` (0.05); `on_cleanup`/`on_shutdown` restore them to full. `on_activate` starts 10 Hz range timer.
 
 | Topic | Type | Direction |
