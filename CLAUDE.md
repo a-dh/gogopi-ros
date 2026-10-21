@@ -141,6 +141,7 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 | `/gogopi/buttons` | `sensor_msgs/Joy` | PUB 50 Hz |
 | `/gogopi/servo_state` | `sensor_msgs/JointState` | PUB 10 Hz |
 | `/gogopi/motor_state` | `std_msgs/Float32MultiArray` | PUB 10 Hz |
+| `/gogopi/led1_state` | `std_msgs/Bool` | PUB 10 Hz (LED1 on; read-only, owned by `hw_wifi`) |
 | `/gogopi/set_servo` | `gogopi_msgs/srv/SetServo` | SRV |
 | `/gogopi/set_buzzer` | `std_srvs/SetBool` | SRV |
 | `/gogopi/e_stop` | `std_srvs/Trigger` | SRV |

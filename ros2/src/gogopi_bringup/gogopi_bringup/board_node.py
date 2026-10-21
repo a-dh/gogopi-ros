@@ -87,6 +87,7 @@ class BoardNode(LifecycleNode):
         self._pub_buttons = self.create_publisher(Joy, "/gogopi/buttons", 10)
         self._pub_servo_state = self.create_publisher(JointState, "/gogopi/servo_state", 10)
         self._pub_motor_state = self.create_publisher(Float32MultiArray, "/gogopi/motor_state", 10)
+        self._pub_led1 = self.create_publisher(Bool, "/gogopi/led1_state", 10)
 
         # subscribers
         self.create_subscription(Twist, "/gogopi/cmd_vel", self._cb_cmd_vel, 10)
@@ -185,6 +186,9 @@ class BoardNode(LifecycleNode):
             self._servo_to_joint(2, self._Board.getPWMServoAngle(2)),
         ]
         self._pub_servo_state.publish(s_msg)
+
+        # LED1 belongs to hw_wifi; read-only here (active-low; samples the blink if it's blinking)
+        self._pub_led1.publish(Bool(data=self._Board.getLed1() == 0))
 
     # ── subscriber callbacks ───────────────────────────────────────────────
 
