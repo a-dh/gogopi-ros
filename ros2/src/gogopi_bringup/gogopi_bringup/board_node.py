@@ -2,11 +2,11 @@
 GoGoPi board lifecycle node.
 
 Lifecycle transitions:
-  configure  → Board.initialize(), create pub/sub/srv
+  configure  → Board.initialize(), nav lights to half brightness, create pub/sub/srv
   activate   → start publish timers
   deactivate → cancel timers, stop motors
-  cleanup    → Board.cleanup()
-  shutdown   → stop motors, Board.cleanup()
+  cleanup    → nav lights back to full, Board.cleanup()
+  shutdown   → stop motors, nav lights back to full, Board.cleanup()
 """
 
 import math
@@ -22,6 +22,12 @@ from gogopi_msgs.srv import SetServo
 from sensor_msgs.msg import Joy, JointState
 from std_msgs.msg import Bool, Float32, Float32MultiArray, Int16MultiArray, UInt16
 from std_srvs.srv import SetBool, Trigger
+
+# Hat NeoPixel nav lights: pixel 0 = starboard (green), pixel 1 = port (red).
+# rpi-led-proxy shows them at full brightness from early boot (LED_INIT_COLORS,
+# packaging/rpi-led-proxy-nav-lights.conf); board_node dims them to half while it
+# holds the board, so their brightness shows whether ROS is in control.
+NAV_LIGHTS = {0: (0, 255, 0), 1: (255, 0, 0)}
 
 
 class BoardNode(LifecycleNode):
@@ -80,6 +86,7 @@ class BoardNode(LifecycleNode):
             return TransitionCallbackReturn.FAILURE
 
         self._Board = Board
+        self._show_nav_lights(0.5)
 
         # publishers
         self._pub_battery = self.create_publisher(UInt16, "/gogopi/battery_raw", 10)
@@ -142,6 +149,7 @@ class BoardNode(LifecycleNode):
         return super().on_deactivate(state)
 
     def on_cleanup(self, state: State) -> TransitionCallbackReturn:
+        self._show_nav_lights(1.0)
         self._Board.cleanup()
         self._Board = None
         return TransitionCallbackReturn.SUCCESS
@@ -150,9 +158,15 @@ class BoardNode(LifecycleNode):
         if self._Board:
             self._Board.setMotor(1, 0)
             self._Board.setMotor(2, 0)
+            self._show_nav_lights(1.0)
             self._Board.cleanup()
             self._Board = None
         return TransitionCallbackReturn.SUCCESS
+
+    def _show_nav_lights(self, brightness: float):
+        for idx, (r, g, b) in NAV_LIGHTS.items():
+            self._Board.setPixelColor(idx, r, g, b)
+        self._Board.show(brightness)
 
     # ── publish callbacks ──────────────────────────────────────────────────
 

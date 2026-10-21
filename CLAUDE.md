@@ -104,7 +104,9 @@ Board.cleanup()      # release pigpiod connection
 - GPIO via pigpiod: buzzer (BCM 6), LED1 (BCM 16, hw_wifi only — read-only in the SDK), LED2 (BCM 26, hw_button_scan only — read-only in the SDK), KEY1 (BCM 13), KEY2 (BCM 23)
 - WS281x via `rpi-led-proxy` Unix socket (`LEDClient` from the `rpi-led-proxy` package)
 
-**NeoPixels:** `setPixelColor(index, r, g, b)` buffers; `show()` sends all pixels to the `led-proxy` daemon at 47% brightness (`__RGB_BRIGHTNESS = 120/255`).
+**NeoPixels:** `setPixelColor(index, r, g, b)` buffers; `show(brightness=None)` sends all pixels to the `led-proxy` daemon at 47% brightness (`__RGB_BRIGHTNESS = 120/255`) unless given a 0–1 `brightness`.
+
+**Nav lights:** hat pixel 0 = starboard (green), pixel 1 = port (red). `rpi-led-proxy` (>= 1.1) starts right after `local-fs.target`, before `network-pre.target`, and shows them at full brightness via `LED_INIT_COLORS` from the drop-in `packaging/rpi-led-proxy-nav-lights.conf` (shipped in the gogopi-services .deb). `board_node` dims them to half on configure (ROS has control) and restores full on cleanup/shutdown.
 
 ### Sonar.py — stateless per-call
 
@@ -125,7 +127,7 @@ All nodes use **ROS2 lifecycle** (`LifecycleNode`). Nodes start in unconfigured 
 
 ### board_node — `gogopi_bringup/board_node.py`
 
-`on_configure` calls `Board.initialize()`. `on_activate` homes both servos to joint 0 (tilt 28° = level, pan 90°; `home_on_activate`, default true — the SDK can't read servo positions back) and starts publish timers. `on_deactivate` stops motors and cancels timers. `on_cleanup`/`on_shutdown` calls `Board.cleanup()`.
+`on_configure` calls `Board.initialize()` and dims the nav lights to half. `on_activate` homes both servos to joint 0 (tilt 28° = level, pan 90°; `home_on_activate`, default true — the SDK can't read servo positions back) and starts publish timers. `on_deactivate` stops motors and cancels timers. `on_cleanup`/`on_shutdown` calls `Board.cleanup()`.
 
 | Topic / Service | Type | Direction |
 |---|---|---|

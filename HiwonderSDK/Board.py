@@ -99,13 +99,18 @@ def setPixelColor(index, r, g, b):
         _pixel_buffer[index] = (r, g, b)
 
 
-def show():
-    """Send pixel buffer to WS281x LEDs via the led-proxy daemon."""
+def show(brightness=None):
+    """Send pixel buffer to WS281x LEDs via the led-proxy daemon.
+
+    brightness (0-1) scales the colours; default __RGB_BRIGHTNESS.
+    """
     if _led_client is None:
         return
+    if brightness is None:
+        brightness = __RGB_BRIGHTNESS
     for i, (r, g, b) in enumerate(_pixel_buffer):
         _led_client.set_intensity_color(
-            f"#{r:02x}{g:02x}{b:02x}", intensity=__RGB_BRIGHTNESS, index=i
+            f"#{r:02x}{g:02x}{b:02x}", intensity=brightness, index=i
         )
 
 

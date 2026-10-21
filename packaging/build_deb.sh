@@ -21,6 +21,7 @@ rm -rf "$STAGING"
 install -d \
     "$STAGING/opt/gogopi/services" \
     "$STAGING/lib/systemd/system" \
+    "$STAGING/lib/systemd/system/rpi-led-proxy.service.d" \
     "$STAGING/DEBIAN"
 
 # Service scripts
@@ -30,6 +31,10 @@ cp "$REPO_ROOT/services/hw_wifi.py"        "$STAGING/opt/gogopi/services/"
 # Systemd units
 cp "$REPO_ROOT/services/hw_button_scan.service" "$STAGING/lib/systemd/system/"
 cp "$REPO_ROOT/services/hw_wifi.service"        "$STAGING/lib/systemd/system/"
+
+# rpi-led-proxy drop-in: hat nav lights (starboard green / port red) from early boot
+cp "$REPO_ROOT/packaging/rpi-led-proxy-nav-lights.conf" \
+    "$STAGING/lib/systemd/system/rpi-led-proxy.service.d/gogopi-nav-lights.conf"
 
 # Venv with runtime deps
 python3 -m venv "$STAGING/opt/gogopi/venv"
