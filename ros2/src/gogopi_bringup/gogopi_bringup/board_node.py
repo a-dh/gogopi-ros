@@ -2,7 +2,7 @@
 GoGoPi board lifecycle node.
 
 Lifecycle transitions:
-  configure  → Board.initialize(), nav lights to half brightness, create pub/sub/srv
+  configure  → Board.initialize(), nav lights dimmed (idle), create pub/sub/srv
   activate   → start publish timers
   deactivate → cancel timers, stop motors
   cleanup    → nav lights back to full, Board.cleanup()
@@ -25,8 +25,9 @@ from std_srvs.srv import SetBool, Trigger
 
 # Hat NeoPixel nav lights: pixel 0 = starboard (green), pixel 1 = port (red).
 # rpi-led-proxy shows them at full brightness from early boot (LED_INIT_COLORS,
-# packaging/rpi-led-proxy-nav-lights.conf); board_node dims them to half while it
-# holds the board, so their brightness shows whether ROS is in control.
+# packaging/rpi-led-proxy-nav-lights.conf); board_node dims them
+# (nav_light_idle_brightness) while it holds the board, so their brightness shows
+# whether ROS is in control.
 NAV_LIGHTS = {0: (0, 255, 0), 1: (255, 0, 0)}
 
 
@@ -64,6 +65,8 @@ class BoardNode(LifecycleNode):
         # read servo positions back, so without this servo_state reports 0° until the first
         # command while the head is really wherever it was left.
         self.declare_parameter("home_on_activate", True)
+        # Nav-light brightness (0-1, boot level = 1.0) while ROS holds the board but is idle.
+        self.declare_parameter("nav_light_idle_brightness", 0.2)
 
         self._timers = []
         self._Board = None
@@ -86,7 +89,7 @@ class BoardNode(LifecycleNode):
             return TransitionCallbackReturn.FAILURE
 
         self._Board = Board
-        self._show_nav_lights(0.5)
+        self._show_nav_lights(self.get_parameter("nav_light_idle_brightness").value)
 
         # publishers
         self._pub_battery = self.create_publisher(UInt16, "/gogopi/battery_raw", 10)
