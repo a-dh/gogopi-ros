@@ -271,18 +271,19 @@
   <link name="sonar_link"/>
 
   <!-- Joints -->
-  <!-- Wheels -->
+  <!-- Wheels: inner face 1 mm outside the 95 mm frame →
+       y = 0.0475 + 0.001 + 0.021/2 = 0.059 -->
   <joint name="wheel_front_left_joint" type="continuous">
     <parent link="base_link"/>
     <child link="wheel_front_left"/>
-    <origin xyz="0.0295 0.060 0" rpy="0 0 0"/>
+    <origin xyz="0.0295 0.059 0" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
   </joint>
 
   <joint name="wheel_front_right_joint" type="continuous">
     <parent link="base_link"/>
     <child link="wheel_front_right"/>
-    <origin xyz="0.0295 -0.060 0" rpy="0 0 0"/>
+    <origin xyz="0.0295 -0.059 0" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
   </joint>
 
