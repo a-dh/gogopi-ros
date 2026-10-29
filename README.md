@@ -141,6 +141,7 @@ ros2 lifecycle set /board_node configure && ros2 lifecycle set /board_node activ
 ros2 lifecycle set /sonar_node configure && ros2 lifecycle set /sonar_node activate
 ros2 lifecycle set /thermal_node configure && ros2 lifecycle set /thermal_node activate
 ros2 lifecycle set /camera_node configure && ros2 lifecycle set /camera_node activate
+ros2 lifecycle set /lidar_node configure && ros2 lifecycle set /lidar_node activate
 ```
 
 To run sensors only (no motors):
@@ -214,7 +215,7 @@ ros2 service call /gogopi/set_servo gogopi_msgs/srv/SetServo "{command: {servo_i
 ros2 topic echo /gogopi/servo_state
 ```
 
-For persistent orientation adjustments, modify the launch parameters or use ROS parameter updates. The servo states are published as `sensor_msgs/JointState` with names `["servo_1", "servo_2"]` for integration with ROS TF and robot state publishers.
+For persistent orientation adjustments, modify the launch parameters or use ROS parameter updates. The servo states are published as `sensor_msgs/JointState` with names `["tilt_joint", "pan_joint"]` (the URDF joint names) and positions in radians — tilt 0 = level, +down; pan 0 = forward, + = port — so `robot_state_publisher` turns them into TF.
 
 ### Ensuring Consistent Image Orientations
 
@@ -305,7 +306,7 @@ The message definitions themselves are the canonical reference:
 ## Robot Description (URDF)
 
 The robot geometry is described in [`ros2/src/gogopi_bringup/urdf/gogopi.urdf`](ros2/src/gogopi_bringup/urdf/gogopi.urdf), including:
-- Base body with 4 wheels (differential drive)
+- Base body with 2 drive wheels (differential drive) and a rear castor
 - Sensor tower mounted on the body
 - Pan-tilt mechanism at the top (controlled by servos 1 and 2)
 - USB and thermal cameras mounted on the tilt link
