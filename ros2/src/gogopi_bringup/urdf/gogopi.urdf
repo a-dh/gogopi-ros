@@ -272,19 +272,20 @@
 
   <!-- Joints -->
   <!-- Wheels: inner face 1 mm outside the 95 mm frame →
-       y = 0.0475 + 0.001 + 0.021/2 = 0.059 -->
-  <joint name="wheel_front_left_joint" type="continuous">
+       y = 0.0475 + 0.001 + 0.021/2 = 0.059. Fixed, not continuous: there are no wheel
+       encoders, and robot_state_publisher (fed /gogopi/servo_state) would never get a
+       wheel joint state, so a continuous joint never gets a TF and RViz draws the wheel
+       at the base_link origin. -->
+  <joint name="wheel_front_left_joint" type="fixed">
     <parent link="base_link"/>
     <child link="wheel_front_left"/>
     <origin xyz="0.0295 0.059 0" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
   </joint>
 
-  <joint name="wheel_front_right_joint" type="continuous">
+  <joint name="wheel_front_right_joint" type="fixed">
     <parent link="base_link"/>
     <child link="wheel_front_right"/>
     <origin xyz="0.0295 -0.059 0" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
   </joint>
 
   <!-- Castor -->
