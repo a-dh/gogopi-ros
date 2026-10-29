@@ -44,7 +44,7 @@ python3 -m venv "$STAGING/opt/gogopi/venv"
     pigpio \
     pywifi \
     smbus2 \
-    "rpi-led-proxy @ git+ssh://git@gratzi:2222/albertd/rpi_ws281x_proxy.git"
+    "rpi-led-proxy @ git+ssh://git@gratzi:2222/albertd/rpi_ws281x_proxy.git@v2.0"
 
 # DEBIAN control files
 sed "s/^Version: .*/Version: $VERSION/" "$REPO_ROOT/packaging/control" \
