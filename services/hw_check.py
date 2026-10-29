@@ -71,6 +71,11 @@ def _thermal_node_running() -> bool:
     return r.returncode == 0
 
 
+def _camera_node_running() -> bool:
+    r = subprocess.run(["pgrep", "-f", "camera_node"], capture_output=True)
+    return r.returncode == 0
+
+
 def _i2c_probe(bus: int, addr: int) -> tuple[bool, str]:
     try:
         from smbus2 import SMBus
@@ -361,6 +366,76 @@ def check_lidar() -> None:
         _row(SKIP, "YDLidar SDK probe", "ydlidar package missing")
 
 
+def check_camera() -> None:
+    print(f"\n{_B}  Camera (HBVCAM USB){_N}")
+
+    dev = "/dev/v4l/by-id/usb-HBVCAM_CAMERA_HBVCAM_CAMERA-video-index0"
+
+    # by-id link present (survives USB re-enumeration as a different /dev/videoN)
+    device_ok = os.path.exists(dev)
+    _row(OK if device_ok else BAD, "device  (by-id)", os.path.realpath(dev) if device_ok else dev)
+    if not device_ok:
+        _fail("USB camera not found", [
+            "Check USB            :  lsusb | grep -i hbv",
+            "List video devices   :  ls -la /dev/v4l/by-id/",
+            "Check cable          :  the USB data wire has snapped at its connector before",
+        ])
+
+    # video group (device access)
+    try:
+        import grp as _grp, pwd as _pwd
+        user = os.environ.get("USER") or _pwd.getpwuid(os.getuid()).pw_name
+        user_groups = [g.gr_name for g in _grp.getgrall() if user in g.gr_mem]
+        in_video = "video" in user_groups
+        _row(OK if in_video else BAD, "user in 'video' group")
+        if not in_video:
+            _fail("user not in 'video' group (camera access denied)", [
+                f"Fix  :  sudo usermod -aG video {user}  (then log out / in)",
+            ])
+    except Exception as exc:
+        _row(BAD, "video group check", str(exc))
+
+    # frame grab — skipped while camera_node holds the device
+    if not device_ok:
+        _row(SKIP, "frame grab", "device absent")
+    elif _camera_node_running():
+        _row(OK, "frame grab", "skipped — camera_node active")
+    else:
+        try:
+            import cv2
+            cap = cv2.VideoCapture(dev, cv2.CAP_V4L2)
+            try:
+                frame = None
+                if cap.isOpened():
+                    # the first reads after open can come back empty
+                    for _ in range(5):
+                        ok, frame = cap.read()
+                        if ok:
+                            break
+                        frame = None
+            finally:
+                cap.release()
+            if frame is not None:
+                h, w = frame.shape[:2]
+                _row(OK, "frame grab", f"{w}x{h}")
+            else:
+                _row(BAD, "frame grab", "no frame")
+                _fail("camera opened but returned no frame", [
+                    "Check for other users  :  fuser -v /dev/video*",
+                    "Replug the camera and retry",
+                ])
+        except ImportError as exc:
+            _row(BAD, "frame grab  (opencv)", str(exc))
+            _fail("OpenCV missing", [
+                "Install  :  sudo apt install python3-opencv",
+            ])
+        except Exception as exc:
+            _row(BAD, "frame grab", str(exc))
+            _fail("camera frame grab failed", [
+                f"Check device   :  ls -la {dev}",
+            ])
+
+
 def check_ros2() -> None:
     print(f"\n{_B}  ROS2{_N}")
     ws = os.path.join(_REPO, "ros2")
@@ -400,6 +475,7 @@ def main() -> None:
     check_hardware_reads(pigpio_ok, expansion_ok, sonar_ok, thermal_ok)
 
     check_lidar()
+    check_camera()
     check_ros2()
 
     # ── summary ───────────────────────────────────────────────────────────────
