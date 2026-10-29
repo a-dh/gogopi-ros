@@ -84,7 +84,8 @@ ros2 lifecycle set /board_node activate
 
 # Git remotes
 # origin = https://github.com/a-dh/gogopi-ros (git@github.com:a-dh/gogopi-ros.git); gratzi = old private mirror.
-# Pushes go to origin only — there is no pre-push mirroring hook. Clone into ~/gopiros2.
+# The robot's clone has a local .git/hooks/pre-push that mirrors every push to all remotes; there, origin
+# fetches over https and pushes over ssh (set-url --push), so push from an ssh -A session. Clone into ~/gopiros2.
 ```
 
 ## SDK architecture
