@@ -114,7 +114,7 @@ to change them, so read this before installing.
 
 | What | Where | What to do |
 |---|---|---|
-| **`rpi-led-proxy` is on a private server** (`gratzi`), not on GitHub | `pyproject.toml`, `packaging/build_deb.sh` | `pip install -e .` and `build_deb.sh` will fail without it, and `Board.py` imports `led_client` from it. **Ask Albert for a copy** (or for it to be published on GitHub), then point both files at the new location |
+| **`rpi-led-proxy` is on a private server** (`gratzi`), not on GitHub | `pyproject.toml`, `packaging/build_deb.sh` | `pip install -e .` and `build_deb.sh` will fail without it, and `Board.py` imports `wsled_client` from it. **Ask Albert for a copy** (or for it to be published on GitHub), then point both files at the new location |
 | Tailscale VPN peer IP `100.77.219.91` | `config/fastdds_tailscale.xml`, `quattro/fastdds_tailscale.xml` | If you don't use Tailscale, ROS discovery on the local network works without it: in `gprctl` set `RMW_FASTRTPS_DEFAULT_PROFILES_FILE=` (empty). `quattro/run.sh` already falls back to multicast when Tailscale isn't running |
 | WiFi country code `US` | `services/hw_wifi.py` | Put `HW_WIFI_COUNTRY = "CN"` in your `hiwonder_wifi_conf.py` (see CHEATSHEET.md) so the radio uses the channels allowed in China |
 | Hostnames `gopiros2`, `quattro`, `gratzi` | docs and scripts | Albert's machines. Substitute your own |

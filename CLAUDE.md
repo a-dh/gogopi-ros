@@ -103,7 +103,7 @@ Board.cleanup()      # release pigpiod connection
 - I2C bus 1, address `0x7A`: expansion board (motors, servos, battery ADC)
 - I2C bus 1, address `0x77`: Sonar module (Sonar.py, smbus2)
 - GPIO via pigpiod: buzzer (BCM 6), LED1 (BCM 16, hw_wifi only — read-only in the SDK), LED2 (BCM 26, hw_button_scan only — read-only in the SDK), KEY1 (BCM 13), KEY2 (BCM 23)
-- WS281x via `rpi-led-proxy` Unix socket (`LEDClient` from the `rpi-led-proxy` package)
+- WS281x via `rpi-led-proxy` Unix socket (`WSLEDClient` from the `rpi-led-proxy` package, >= 2.0 — earlier versions named it `LEDClient` in `led_client`)
 
 **NeoPixels:** `setPixelColor(index, r, g, b)` buffers; `show(brightness=None)` sends all pixels to the `led-proxy` daemon at 47% brightness (`__RGB_BRIGHTNESS = 120/255`) unless given a 0–1 `brightness`.
 

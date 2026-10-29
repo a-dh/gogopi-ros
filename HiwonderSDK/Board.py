@@ -2,7 +2,7 @@ import sys
 import time
 from enum import Enum
 import pigpio
-from led_client import LEDClient
+from wsled_client import WSLEDClient
 
 if sys.version_info.major == 2:
     print("Please run this program with python3!")
@@ -47,7 +47,7 @@ def initialize():
     pi = pigpio.pi()
     if not pi.connected:
         raise RuntimeError("Cannot connect to pigpiod — is the daemon running?")
-    _led_client = LEDClient()
+    _led_client = WSLEDClient()
     show()  # blank NeoPixels
     pi.set_mode(BUZZER_PIN, pigpio.OUTPUT)
     pi.write(BUZZER_PIN, 0)

@@ -193,18 +193,18 @@ def check_daemons() -> tuple[bool, bool]:
     # rpi-led-proxy client
     led_ok = False
     try:
-        from led_client import LEDClient
-        LEDClient()
+        from wsled_client import WSLEDClient
+        WSLEDClient()
         led_ok = True
-        _row(OK, "rpi-led-proxy  (LEDClient)")
+        _row(OK, "rpi-led-proxy  (WSLEDClient)")
     except ImportError:
-        _row(BAD, "rpi-led-proxy  (LEDClient)", "led_client package not installed")
-        _fail("led_client package missing", [
+        _row(BAD, "rpi-led-proxy  (WSLEDClient)", "wsled_client package not installed")
+        _fail("wsled_client package missing", [
             "Install              :  pip install rpi-led-proxy",
         ])
     except Exception as exc:
-        _row(BAD, "rpi-led-proxy  (LEDClient)", str(exc))
-        _fail("rpi-led-proxy LEDClient failed to connect", [
+        _row(BAD, "rpi-led-proxy  (WSLEDClient)", str(exc))
+        _fail("rpi-led-proxy WSLEDClient failed to connect", [
             "Check service logs   :  journalctl -u rpi-led-proxy -n 20 --no-pager",
             "Start service        :  sudo systemctl start rpi-led-proxy",
         ])
