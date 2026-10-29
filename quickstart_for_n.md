@@ -114,10 +114,9 @@ to change them, so read this before installing.
 
 | What | Where | What to do |
 |---|---|---|
-| **`rpi-led-proxy` is on a private server** (`gratzi`), not on GitHub | `pyproject.toml`, `packaging/build_deb.sh` | `pip install -e .` and `build_deb.sh` will fail without it, and `Board.py` imports `wsled_client` from it. **Ask Albert for a copy** (or for it to be published on GitHub), then point both files at the new location |
 | Tailscale VPN peer IP `100.77.219.91` | `config/fastdds_tailscale.xml`, `quattro/fastdds_tailscale.xml` | If you don't use Tailscale, ROS discovery on the local network works without it: in `gprctl` set `RMW_FASTRTPS_DEFAULT_PROFILES_FILE=` (empty). `quattro/run.sh` already falls back to multicast when Tailscale isn't running |
 | WiFi country code `US` | `services/hw_wifi.py` | Put `HW_WIFI_COUNTRY = "CN"` in your `hiwonder_wifi_conf.py` (see CHEATSHEET.md) so the radio uses the channels allowed in China |
-| Hostnames `gopiros2`, `quattro`, `gratzi` | docs and scripts | Albert's machines. Substitute your own |
+| Hostnames `gopiros2`, `quattro` | docs and scripts | Albert's machines. Substitute your own |
 
 ---
 
@@ -174,7 +173,7 @@ Follow the order in README.md / CLAUDE.md. In short:
 1. **Pi OS:** Ubuntu 24.04 (arm64) + ROS 2 Jazzy (`ros-jazzy-ros-base`), with I2C enabled.
 2. **System packages:** `pigpio i2c-tools python3-opencv`, and the extra ROS
    packages listed in CLAUDE.md.
-3. **Daemons:** `pigpiod` and `rpi-led-proxy` must be running (see section 3 about the proxy).
+3. **Daemons:** `pigpiod` and `rpi-led-proxy` must be running (build and install the proxy's `.deb` from <https://github.com/a-dh/rpi_ws281x_proxy>).
 4. **SDK:** `pip3 install --user --break-system-packages -e .` (ROS uses the
    system Python, not a venv).
 5. **YDLidar SDK:** build and install once (commands in CLAUDE.md).

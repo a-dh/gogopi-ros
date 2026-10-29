@@ -35,7 +35,7 @@ python3 -m venv venv && . venv/bin/activate
 pip install -e .                       # install gogopi-sdk (HiwonderSDK)
 
 # Build and install systemd services as a Debian package
-# (requires dpkg-deb and SSH access to gratzi for rpi-led-proxy — use ssh -A)
+# (requires dpkg-deb; fetches rpi-led-proxy from github.com/a-dh/rpi_ws281x_proxy, tag v2.0-gh)
 # Run ON THE ROBOT: the .deb bundles a venv tied to the host arch + Python version;
 # build_deb.sh refuses to run on anything but aarch64.
 ./packaging/build_deb.sh

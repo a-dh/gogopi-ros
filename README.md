@@ -166,7 +166,7 @@ Expected results:
 **Systemd services** (button scan, WiFi manager) — installs a bundled venv under `/opt/gogopi/`:
 
 ```bash
-./packaging/build_deb.sh                       # run on the robot (aarch64 only); requires SSH access to gratzi for rpi-led-proxy
+./packaging/build_deb.sh                       # run on the robot (aarch64 only)
 sudo dpkg -i packaging/gogopi-services_*.deb
 ```
 

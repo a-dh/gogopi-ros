@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build gogopi-services_X.Y.Z_all.deb
-# Run from any directory; requires dpkg-deb and SSH access to gratzi.
+# Run from any directory; requires dpkg-deb and internet access (GitHub).
 # Must run ON THE ROBOT: the bundled venv is tied to the build host's
 # architecture and Python version (lib/python3.X), so an x86 build won't run on the Pi.
 set -euo pipefail
@@ -44,7 +44,7 @@ python3 -m venv "$STAGING/opt/gogopi/venv"
     pigpio \
     pywifi \
     smbus2 \
-    "rpi-led-proxy @ git+ssh://git@gratzi:2222/albertd/rpi_ws281x_proxy.git@v2.0"
+    "rpi-led-proxy @ git+https://github.com/a-dh/rpi_ws281x_proxy.git@v2.0-gh"
 
 # DEBIAN control files
 sed "s/^Version: .*/Version: $VERSION/" "$REPO_ROOT/packaging/control" \
