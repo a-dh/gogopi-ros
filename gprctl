@@ -14,7 +14,7 @@
 #   6 lidar    — lidar_node with /dev/ydlidar check
 #   7 shell    — interactive shell, auto configure+activate of all nodes
 
-REPO="/home/albertd/gopiros2"
+REPO="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 
 if [ "${1}" = "stop" ]; then
     SESSION="${2:-gopiros2}"
@@ -29,7 +29,7 @@ fi
 
 SESSION="${1:-gopiros2}"
 [ "$SESSION" = "start" ] && SESSION="gopiros2"
-WS="/home/albertd/gopiros2/ros2"
+WS="$REPO/ros2"
 SETUP="source /opt/ros/jazzy/setup.bash && source $WS/install/setup.bash && export PYTHONPATH=$REPO:/usr/local/lib/python3/dist-packages:\$PYTHONPATH && export RMW_FASTRTPS_DEFAULT_PROFILES_FILE=$REPO/config/fastdds_tailscale.xml && export ROS_DOMAIN_ID=0"
 
 tmux kill-session -t "$SESSION" 2>/dev/null
@@ -47,7 +47,7 @@ tmux send-keys -t "$SESSION:daemons" \
 # 1: robot_state_publisher
 tmux new-window -t "$SESSION" -n "urdf" "$SHELL_CMD"
 tmux send-keys -t "$SESSION:urdf" \
-  "$SETUP && ros2 launch /home/albertd/gopiros2/test_urdf.launch.py" Enter
+  "$SETUP && ros2 launch $REPO/test_urdf.launch.py" Enter
 
 # 2: board_node — start node, wait for it to register, then configure + activate
 tmux new-window -t "$SESSION" -n "board" "$SHELL_CMD"

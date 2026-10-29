@@ -363,7 +363,7 @@ def check_lidar() -> None:
 
 def check_ros2() -> None:
     print(f"\n{_B}  ROS2{_N}")
-    ws = "/home/albertd/gopiros2/ros2"
+    ws = os.path.join(_REPO, "ros2")
 
     built = os.path.isdir(os.path.join(ws, "install"))
     _row(OK if built else BAD, "workspace built  (ros2/install/)")

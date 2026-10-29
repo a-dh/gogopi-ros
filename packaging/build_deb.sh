@@ -7,7 +7,7 @@ set -euo pipefail
 
 if [ "$(uname -m)" != "aarch64" ]; then
     echo "build_deb.sh: refusing to build on $(uname -m) — run it on the robot (aarch64)." >&2
-    echo "  e.g. ssh -A albertd@gopiros2.local 'cd ~/gopiros2 && git pull && ./packaging/build_deb.sh'" >&2
+    echo "  e.g. ssh -A <user>@<robot> 'cd ~/gopiros2 && git pull && ./packaging/build_deb.sh'" >&2
     exit 1
 fi
 
