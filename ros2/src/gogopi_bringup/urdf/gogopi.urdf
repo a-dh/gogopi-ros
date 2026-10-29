@@ -350,6 +350,8 @@
   <!-- Lidar: spinner centre at wheel-axis x, robot centreline y, 130 mm above floor -->
   <!-- floor = wheel_centre_z − wheel_radius = 0 − 0.0335 = −0.0335 m in base_link  -->
   <!-- lidar z = −0.0335 + 0.130 = 0.0965 m                                          -->
+  <!-- yaw π: the TX8's 0° points at the robot's rear (lidar_node sets inverted, so
+       angles are counter-clockwise; without it the scan is mirrored left↔right) -->
   <joint name="lidar_joint" type="fixed">
     <parent link="base_link"/>
     <child link="lidar_link"/>

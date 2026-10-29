@@ -197,9 +197,9 @@ Serial device: **`/dev/ydlidar`** (udev rule — do not use `/dev/ttyUSBx` direc
 |---|---|---|
 | `/gogopi/lidar/scan` | `sensor_msgs/LaserScan` | PUB ~7 Hz |
 
-Key parameters (all have defaults): `port` (`/dev/ydlidar`), `baudrate` (115200), `frame_id` (`lidar_link`), `scan_hz` (7.0, valid 4–8), `range_min` (0.1 m), `range_max` (8.0 m), `single_channel` (true), `motor_dtr_ctrl` (true).
+Key parameters (all have defaults): `port` (`/dev/ydlidar`), `baudrate` (115200), `frame_id` (`lidar_link`), `scan_hz` (7.0, valid 4–8), `range_min` (0.1 m), `range_max` (8.0 m), `single_channel` (true), `motor_dtr_ctrl` (true), `inverted` (true — the SDK reports clockwise angles otherwise, which mirrors the scan left↔right).
 
-Published scan is a 360-bin uniform grid (1°/bin) over −π … +π. Bins with no return are `inf`.
+Published scan is a 360-bin uniform grid (1°/bin) over −π … +π, counter-clockwise. Bins with no return are `inf`. The TX8's 0° points at the robot's rear, so the URDF `lidar_joint` has yaw π.
 
 ## Services and WiFi/power semantics
 

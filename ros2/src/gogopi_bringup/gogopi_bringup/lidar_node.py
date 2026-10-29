@@ -41,6 +41,8 @@ class LidarNode(LifecycleNode):
         self.declare_parameter("range_max", 8.0)
         self.declare_parameter("single_channel", True)
         self.declare_parameter("motor_dtr_ctrl", True)
+        # SDK angles are clockwise unless inverted; LaserScan needs counter-clockwise
+        self.declare_parameter("inverted", True)
 
         self._laser = None
         self._ydlidar = None
@@ -75,6 +77,7 @@ class LidarNode(LifecycleNode):
         self._laser.setlidaropt(ydlidar.LidarPropMinAngle,              -180.0)
         self._laser.setlidaropt(ydlidar.LidarPropSingleChannel,          self.get_parameter("single_channel").value)
         self._laser.setlidaropt(ydlidar.LidarPropSupportMotorDtrCtrl,    self.get_parameter("motor_dtr_ctrl").value)
+        self._laser.setlidaropt(ydlidar.LidarPropInverted,               self.get_parameter("inverted").value)
 
         if not self._laser.initialize():
             self.get_logger().error("YDLidar initialize() failed — check port and power")
