@@ -223,7 +223,7 @@ Tmux windows:
 | 6 | lidar | `/dev/ydlidar` check, then `lidar_node` |
 | 7 | shell | configure + activate all nodes, then interactive |
 
-The status bar (bottom of the tmux session) shows hardware health, ROS node states, and battery level, refreshed every 5 s.
+The status bar (bottom of the tmux session) shows hardware health, camera presence, ROS node states, and battery level, refreshed every 5 s.
 
 `camera_node` requires `python3-opencv` (`sudo apt install python3-opencv`). If cv2 is absent the node logs a clear error and returns `FAILURE` from `on_configure`; all other nodes continue normally.
 

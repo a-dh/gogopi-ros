@@ -104,7 +104,7 @@ tmux select-window -t "$SESSION:board"
 tmux set-option -t "$SESSION" status on
 tmux set-option -t "$SESSION" status-interval 5
 tmux set-option -t "$SESSION" status-right "#(python3 $REPO/services/tmux_status.py 2>/dev/null)"
-tmux set-option -t "$SESSION" status-right-length 60
+tmux set-option -t "$SESSION" status-right-length 70
 
 # mouse: wheel scrolls history (enters copy mode), click to switch windows
 tmux set-option -t "$SESSION" mouse on

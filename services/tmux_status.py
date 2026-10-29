@@ -6,12 +6,17 @@ without sourcing ROS2 (would be too slow).
 
 Checks performed — all complete in <50 ms:
   HW health   : systemctl is-active pigpiod + rpi-led-proxy
+  Camera      : USB camera's /dev/v4l/by-id link exists
   ROS          : pgrep for the board_node process (lifecycle proxy)
   Battery      : smbus2 direct read of I2C bus 1 / 0x7A register 0
 """
 
+import os
 import subprocess
 import sys
+
+
+CAMERA_DEV = "/dev/v4l/by-id/usb-HBVCAM_CAMERA_HBVCAM_CAMERA-video-index0"
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -45,6 +50,8 @@ pigpiod_ok = _svc_active("pigpiod")
 led_ok     = _svc_active("rpi-led-proxy")
 hw_ok      = pigpiod_ok and led_ok
 
+cam_ok = os.path.exists(CAMERA_DEV)
+
 ros_running = _board_node_running()
 
 bat = _battery_raw()
@@ -65,6 +72,12 @@ else:
         bad.append("led-proxy")
     hw_str = f"#[fg=red]HW ✗ ({','.join(bad)})#[default]"
 
+# Camera — device presence only (camera_node may hold it, so no frame grab)
+if cam_ok:
+    cam_str = "#[fg=green]CAM ✓#[default]"
+else:
+    cam_str = "#[fg=red]CAM ✗#[default]"
+
 # ROS — process-existence proxy for lifecycle-active
 if ros_running:
     ros_str = "#[fg=green]board: run#[default]"
@@ -79,4 +92,4 @@ else:
     color = "green" if v >= 7.8 else ("yellow" if v >= 7.2 else "red")
     bat_str = f"#[fg={color}]BAT {v:.2f}V#[default]"
 
-print(" " + SEP.join([hw_str, ros_str, bat_str]) + " ")
+print(" " + SEP.join([hw_str, cam_str, ros_str, bat_str]) + " ")
