@@ -60,7 +60,7 @@ sudo make install          # pigpiod + libpigpio to /usr/local, Python module to
 cd ~/gopiros2
 ```
 
-`make install` doesn't install a systemd unit. Create one (upstream's `util/pigpiod.service` assumes `/usr/bin` and a relative `PIDFile`):
+`make install` doesn't install a systemd unit. Create one — upstream's `util/pigpiod.service` with `ExecStart` pointed at `/usr/local/bin` (pigpiod writes `/var/run/pigpio.pid`, i.e. `/run/pigpio.pid`):
 
 ```bash
 sudo tee /etc/systemd/system/pigpiod.service >/dev/null <<'UNIT'
@@ -69,7 +69,7 @@ Description=Pigpio daemon
 
 [Service]
 Type=forking
-PIDFile=/var/run/pigpio.pid
+PIDFile=/run/pigpio.pid
 ExecStart=/usr/local/bin/pigpiod
 
 [Install]
