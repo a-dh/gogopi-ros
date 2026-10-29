@@ -175,9 +175,16 @@ def check_daemons() -> tuple[bool, bool]:
         import pigpio
         pi = pigpio.pi()
         pigpio_ok = pi.connected
+        note = ""
         if pigpio_ok:
+            # a pin read proves GPIO access, not just the socket
+            try:
+                note = f"v{pi.get_pigpio_version()}, KEY1 (BCM 13) = {pi.read(13)}"
+            except Exception as exc:
+                pigpio_ok = False
+                note = f"GPIO read failed: {exc}"
             pi.stop()
-        _row(OK if pigpio_ok else BAD, "pigpiod  (Python client)")
+        _row(OK if pigpio_ok else BAD, "pigpiod  (Python client)", note)
         if not pigpio_ok:
             _fail("pigpiod Python client cannot connect", [
                 "Check service        :  systemctl status pigpiod",
@@ -187,7 +194,8 @@ def check_daemons() -> tuple[bool, bool]:
     except ImportError:
         _row(BAD, "pigpiod  (Python client)", "pigpio package not installed")
         _fail("pigpio Python package missing", [
-            "Install              :  pip install pigpio",
+            "Install              :  sudo make install  in ~/pigpio  (README → Install → pigpio)",
+            "  or, SDK in a venv  :  pip install -e .  (pulls pigpio from pyproject.toml)",
         ])
     except Exception as exc:
         _row(BAD, "pigpiod  (Python client)", str(exc))
