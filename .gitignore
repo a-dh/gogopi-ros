@@ -11,3 +11,4 @@ ros2/log/
 packaging/staging/
 packaging/*.deb
 .idea/
+rpi_ws281x_proxy/
