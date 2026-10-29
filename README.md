@@ -2,6 +2,153 @@
 
 ROS2 Jazzy driver stack for the GoGoPi differential-drive robot (Hiwonder expansion board on Raspberry Pi).
 
+## Contents
+
+- [Install](#install)
+  - [Clone](#clone)
+  - [System packages](#system-packages)
+  - [Daemons](#daemons)
+  - [YDLidar SDK](#ydlidar-sdk)
+  - [Python SDK](#python-sdk)
+  - [Systemd services](#systemd-services)
+- [Build and run (ROS2)](#build-and-run-ros2)
+  - [Session manager — `gprctl`](#session-manager--gprctl)
+  - [Manual lifecycle control](#manual-lifecycle-control)
+- [Hardware wiring](#hardware-wiring)
+- [I2C bus layout](#i2c-bus-layout)
+  - [Adding a ST VL53L5CX ToF sensor](#adding-a-st-vl53l5cx-tof-sensor)
+- [Camera Pan/Tilt Mechanism](#camera-pantilt-mechanism)
+  - [Adjusting Camera Orientation in ROS](#adjusting-camera-orientation-in-ros)
+  - [Ensuring Consistent Image Orientations](#ensuring-consistent-image-orientations)
+  - [Calibrating Servo Angles](#calibrating-servo-angles)
+  - [Power Saving and E-Stop for Servos](#power-saving-and-e-stop-for-servos)
+  - [Power Management Modes](#power-management-modes)
+- [Hardware self-test](#hardware-self-test)
+- [Architecture and topic reference](#architecture-and-topic-reference)
+- [Robot Description (URDF)](#robot-description-urdf)
+
+## Install
+
+Everything below runs on the robot: a Raspberry Pi with Ubuntu 24.04 and ROS2 Jazzy (`ros-jazzy-ros-base`).
+
+### Clone
+
+Clone into `~/gopiros2` (the path the docs and scripts assume):
+
+```bash
+git clone https://github.com/a-dh/gogopi-ros.git ~/gopiros2
+cd ~/gopiros2
+```
+
+### System packages
+
+```bash
+sudo apt install pigpio i2c-tools python3-opencv \
+    ros-jazzy-ros2lifecycle ros-jazzy-ros2run ros-jazzy-compressed-image-transport
+sudo raspi-config   # Interface Options → I2C → enable
+```
+
+### Daemons
+
+Must be running before any SDK or ROS2 node use:
+
+```bash
+sudo systemctl enable --now pigpiod
+sudo systemctl enable --now rpi-led-proxy   # from rpi-led-proxy .deb
+```
+
+`rpi-led-proxy` drives the WS281x NeoPixels via GPIO 12 (PWM0). See [its README](https://github.com/a-dh/rpi_ws281x_proxy) for `.deb` build and install instructions.
+
+### YDLidar SDK
+
+Needed by `lidar_node`. Builds `libydlidar_sdk.a` and installs the Python bindings to `/usr/local/lib/python3/dist-packages/`:
+
+```bash
+git clone https://github.com/YDLIDAR/YDLidar-SDK.git ~/YDLidar-SDK
+cd ~/YDLidar-SDK && mkdir build && cd build
+cmake .. && make -j4
+sudo make install
+cd ~/gopiros2
+```
+
+### Python SDK
+
+ROS2 nodes run under `/usr/bin/python3`, so install `gogopi-sdk` (HiwonderSDK) into the system Python:
+
+```bash
+pip3 install --user --break-system-packages -e .
+```
+
+For direct SDK use outside ROS2 you can use a venv instead (`python3 -m venv venv && . venv/bin/activate && pip install -e .`). Python dependencies: see [pyproject.toml](pyproject.toml).
+
+### Systemd services
+
+Button scan, WiFi manager, discovery beacon and boot-time sonar lights, packaged as a `.deb` with a bundled venv under `/opt/gogopi/`:
+
+```bash
+./packaging/build_deb.sh                       # run on the robot (aarch64 only)
+sudo dpkg -i packaging/gogopi-services_*.deb
+```
+
+To remove:
+
+```bash
+sudo dpkg -r gogopi-services
+```
+
+## Build and run (ROS2)
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd ros2
+colcon build
+source install/setup.bash
+```
+
+### Session manager — `gprctl`
+
+`gprctl` starts a named tmux session with one window per node and automatically drives all lifecycle transitions:
+
+```bash
+./gprctl            # start (or restart) the gopiros2 session
+./gprctl stop       # kill the session
+./gprctl hwhealth   # run hardware health check in the terminal
+```
+
+Tmux windows:
+
+| # | Name | Contents |
+|---|---|---|
+| 0 | daemons | hardware health check (read-only) |
+| 1 | urdf | `robot_state_publisher` |
+| 2 | board | `board_node` |
+| 3 | sonar | I2C probe at 0x77, then `sonar_node` |
+| 4 | thermal | I2C probe at 0x33, then `thermal_node` (MLX90640) |
+| 5 | camera | `/dev/v4l/by-id/usb-HBVCAM_…-video-index0` check, then `camera_node` |
+| 6 | lidar | `/dev/ydlidar` check, then `lidar_node` |
+| 7 | shell | configure + activate all nodes, then interactive |
+
+The status bar (bottom of the tmux session) shows hardware health, camera presence, ROS node states, and battery level, refreshed every 5 s.
+
+`camera_node` requires `python3-opencv` (`sudo apt install python3-opencv`). If cv2 is absent the node logs a clear error and returns `FAILURE` from `on_configure`; all other nodes continue normally.
+
+### Manual lifecycle control
+
+To drive nodes manually instead of using `gprctl`:
+
+```bash
+ros2 lifecycle set /board_node configure && ros2 lifecycle set /board_node activate
+ros2 lifecycle set /sonar_node configure && ros2 lifecycle set /sonar_node activate
+ros2 lifecycle set /thermal_node configure && ros2 lifecycle set /thermal_node activate
+ros2 lifecycle set /camera_node configure && ros2 lifecycle set /camera_node activate
+```
+
+To run sensors only (no motors):
+
+```bash
+ros2 launch gogopi_bringup sensors_only.launch.py
+```
+
 ## Hardware wiring
 
 | Signal | BCM | BOARD pin |
@@ -124,24 +271,6 @@ ros2 service call /gogopi/exit_power_save std_srvs/Trigger
 
 Use these services for battery conservation or standby modes. Lifecycle transitions can also be used for node-level power management.
 
-**System packages**
-
-```bash
-sudo apt install pigpio i2c-tools python3-opencv
-sudo raspi-config   # Interface Options → I2C → enable
-```
-
-**Daemons** — must be running before any SDK or ROS2 node use:
-
-```bash
-sudo systemctl enable --now pigpiod
-sudo systemctl enable --now rpi-led-proxy   # from rpi-led-proxy .deb
-```
-
-`rpi-led-proxy` drives the WS281x NeoPixels via GPIO 12 (PWM0). See [its README](https://github.com/a-dh/rpi_ws281x_proxy) for `.deb` build and install instructions.
-
-**Python dependencies** — see [pyproject.toml](pyproject.toml).
-
 ## Hardware self-test
 
 Run without ROS2, directly against the system Python that has the SDK installed:
@@ -160,89 +289,6 @@ Expected results:
 | `--servos` | Each servo (1–6) nudges centre → −10° → centre → +10° → centre |
 | `--motors` | Robot drives forward then reverses at 30% for 1 s each; without battery, PWM tones only (no movement) — this is a pass |
 | Battery ADC | Returns 0 when no battery connected — expected |
-
-## Install
-
-Clone into `~/gopiros2` (the path the docs and scripts assume):
-
-```bash
-git clone https://github.com/a-dh/gogopi-ros.git ~/gopiros2
-```
-
-**Systemd services** (button scan, WiFi manager) — installs a bundled venv under `/opt/gogopi/`:
-
-```bash
-./packaging/build_deb.sh                       # run on the robot (aarch64 only)
-sudo dpkg -i packaging/gogopi-services_*.deb
-```
-
-To remove:
-
-```bash
-sudo dpkg -r gogopi-services
-```
-
-**Python SDK** (for ROS2 nodes and direct SDK use):
-
-```bash
-python3 -m venv venv && . venv/bin/activate
-pip install -e .
-```
-
-## Build and run (ROS2)
-
-```bash
-source /opt/ros/jazzy/setup.bash
-pip install -e .   # make HiwonderSDK importable to ROS2's Python
-
-cd ros2
-colcon build
-source install/setup.bash
-```
-
-### Session manager — `gprctl`
-
-`gprctl` starts a named tmux session with one window per node and automatically drives all lifecycle transitions:
-
-```bash
-./gprctl            # start (or restart) the gopiros2 session
-./gprctl stop       # kill the session
-./gprctl hwhealth   # run hardware health check in the terminal
-```
-
-Tmux windows:
-
-| # | Name | Contents |
-|---|---|---|
-| 0 | daemons | hardware health check (read-only) |
-| 1 | urdf | `robot_state_publisher` |
-| 2 | board | `board_node` |
-| 3 | sonar | I2C probe at 0x77, then `sonar_node` |
-| 4 | thermal | I2C probe at 0x33, then `thermal_node` (MLX90640) |
-| 5 | camera | `/dev/v4l/by-id/usb-HBVCAM_…-video-index0` check, then `camera_node` |
-| 6 | lidar | `/dev/ydlidar` check, then `lidar_node` |
-| 7 | shell | configure + activate all nodes, then interactive |
-
-The status bar (bottom of the tmux session) shows hardware health, camera presence, ROS node states, and battery level, refreshed every 5 s.
-
-`camera_node` requires `python3-opencv` (`sudo apt install python3-opencv`). If cv2 is absent the node logs a clear error and returns `FAILURE` from `on_configure`; all other nodes continue normally.
-
-### Manual lifecycle control
-
-To drive nodes manually instead of using `gprctl`:
-
-```bash
-ros2 lifecycle set /board_node configure && ros2 lifecycle set /board_node activate
-ros2 lifecycle set /sonar_node configure && ros2 lifecycle set /sonar_node activate
-ros2 lifecycle set /thermal_node configure && ros2 lifecycle set /thermal_node activate
-ros2 lifecycle set /camera_node configure && ros2 lifecycle set /camera_node activate
-```
-
-To run sensors only (no motors):
-
-```bash
-ros2 launch gogopi_bringup sensors_only.launch.py
-```
 
 ## Architecture and topic reference
 
