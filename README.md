@@ -7,6 +7,7 @@ ROS2 Jazzy driver stack for the GoGoPi differential-drive robot (Hiwonder expans
 - [Install](#install)
   - [Clone](#clone)
   - [System packages](#system-packages)
+  - [pigpio](#pigpio)
   - [Daemons](#daemons)
   - [YDLidar SDK](#ydlidar-sdk)
   - [Python SDK](#python-sdk)
@@ -43,9 +44,38 @@ cd ~/gopiros2
 ### System packages
 
 ```bash
-sudo apt install pigpio i2c-tools python3-opencv \
+sudo apt install build-essential cmake i2c-tools python3-opencv \
     ros-jazzy-ros2lifecycle ros-jazzy-ros2run ros-jazzy-compressed-image-transport
 sudo raspi-config   # Interface Options → I2C → enable
+```
+
+### pigpio
+
+Ubuntu packages only pigpio's client side (`python3-pigpio`, `pigpio-tools`, `libpigpiod-if2`); the `pigpiod` daemon itself has to be built from source. The robot runs tag `v79` (Raspberry Pi 4; upstream pigpio does not support the Pi 5):
+
+```bash
+git clone --branch v79 https://github.com/joan2937/pigpio.git ~/pigpio
+cd ~/pigpio && make
+sudo make install          # pigpiod + libpigpio to /usr/local, Python module to /usr/local/lib/python3.12
+cd ~/gopiros2
+```
+
+`make install` doesn't install a systemd unit. Create one (upstream's `util/pigpiod.service` assumes `/usr/bin` and a relative `PIDFile`):
+
+```bash
+sudo tee /etc/systemd/system/pigpiod.service >/dev/null <<'UNIT'
+[Unit]
+Description=Pigpio daemon
+
+[Service]
+Type=forking
+PIDFile=/var/run/pigpio.pid
+ExecStart=/usr/local/bin/pigpiod
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+sudo systemctl daemon-reload
 ```
 
 ### Daemons
@@ -53,7 +83,7 @@ sudo raspi-config   # Interface Options → I2C → enable
 Must be running before any SDK or ROS2 node use:
 
 ```bash
-sudo systemctl enable --now pigpiod
+sudo systemctl enable --now pigpiod         # unit from the pigpio step above
 sudo systemctl enable --now rpi-led-proxy   # from rpi-led-proxy .deb
 ```
 
