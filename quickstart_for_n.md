@@ -128,7 +128,7 @@ mainland China. Domestic mirrors fix most of it.
 ### Getting the code
 
 - `github.com` works but is often slow or drops mid-clone. Retry, or use a
-  shallow clone: `git clone --depth 1 https://github.com/<user>/gopiros2.git`.
+  shallow clone: `git clone --depth 1 https://github.com/a-dh/gogopi-ros.git gopiros2`.
 - **Gitee** (gitee.com) can import a public GitHub repo. Its "Import from
   GitHub" option makes a fast domestic copy you can clone from and resync.
 - Or download the ZIP from the GitHub web page.

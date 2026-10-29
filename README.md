@@ -138,7 +138,7 @@ sudo systemctl enable --now pigpiod
 sudo systemctl enable --now rpi-led-proxy   # from rpi-led-proxy .deb
 ```
 
-`rpi-led-proxy` drives the WS281x NeoPixels via GPIO 12 (PWM0). See its own README for `.deb` build and install instructions.
+`rpi-led-proxy` drives the WS281x NeoPixels via GPIO 12 (PWM0). See [its README](https://github.com/a-dh/rpi_ws281x_proxy) for `.deb` build and install instructions.
 
 **Python dependencies** — see [pyproject.toml](pyproject.toml).
 
@@ -162,6 +162,12 @@ Expected results:
 | Battery ADC | Returns 0 when no battery connected — expected |
 
 ## Install
+
+Clone into `~/gopiros2` (the path the docs and scripts assume):
+
+```bash
+git clone https://github.com/a-dh/gogopi-ros.git ~/gopiros2
+```
 
 **Systemd services** (button scan, WiFi manager) — installs a bundled venv under `/opt/gogopi/`:
 

@@ -82,8 +82,9 @@ ros2 launch gogopi_bringup sensors_only.launch.py
 ros2 lifecycle set /board_node configure
 ros2 lifecycle set /board_node activate
 
-# Git push behavior
-This repository has a local `.git/hooks/pre-push` hook that mirrors the same pushed refs to all configured remotes. Push commands from this repo will automatically attempt to update every remote.
+# Git remotes
+# origin = https://github.com/a-dh/gogopi-ros (git@github.com:a-dh/gogopi-ros.git); gratzi = old private mirror.
+# Pushes go to origin only — there is no pre-push mirroring hook. Clone into ~/gopiros2.
 ```
 
 ## SDK architecture
