@@ -26,6 +26,10 @@ from std_msgs.msg import UInt8
 # sonar_node dims them (nav_light_idle_brightness) while it holds the sonar.
 NAV_LIGHTS = {0: (128, 0, 0), 1: (0, 128, 0)}
 
+# Raw readings 0xFF80-0xFFFF (-128..-1 as int16) are the module's "no echo" codes, not
+# distances (about half of all reads during a paper sweep). Published as +inf (REP 117).
+NO_ECHO_MIN = 0xFF80
+
 
 class SonarNode(LifecycleNode):
     def __init__(self):
@@ -103,7 +107,7 @@ class SonarNode(LifecycleNode):
 
     def _publish_range(self):
         try:
-            dist_mm = self._sonar.getDistance()
+            dist_mm = self._sonar.getDistanceRaw()
         except Exception as exc:
             self.get_logger().warning(f"Sonar read failed: {exc}")
             return
@@ -115,7 +119,7 @@ class SonarNode(LifecycleNode):
         msg.field_of_view = self.get_parameter("field_of_view_rad").value
         msg.min_range = self.get_parameter("range_min").value
         msg.max_range = self.get_parameter("range_max").value
-        msg.range = dist_mm / 1000.0
+        msg.range = float("inf") if dist_mm >= NO_ECHO_MIN else dist_mm / 1000.0
         self._pub_range.publish(msg)
 
     # ── subscriber callbacks ───────────────────────────────────────────────

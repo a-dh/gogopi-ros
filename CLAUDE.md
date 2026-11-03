@@ -113,7 +113,7 @@ Board.cleanup()      # release pigpiod connection
 
 ### Sonar.py — stateless per-call
 
-Uses `smbus2` with `with SMBus(...) as bus:` per call. No `initialize()`/`cleanup()` needed. `getDistance()` returns mm (capped at 5000). The Sonar module also carries 2 NeoPixels controlled via its own I2C registers (not the led-proxy).
+Uses `smbus2` with `with SMBus(...) as bus:` per call. No `initialize()`/`cleanup()` needed. `getDistance()` returns mm (capped at 5000); `getDistanceRaw()` returns the uncapped register, where 0xFF80–0xFFFF means no echo. The Sonar module also carries 2 NeoPixels controlled via its own I2C registers (not the led-proxy).
 
 ## ROS2 node architecture
 
@@ -163,7 +163,7 @@ Servo ↔ joint mapping: `joint_zero_servo_deg` [28, 90] (servo angle where the 
 
 ### sonar_node — `gogopi_bringup/sonar_node.py`
 
-Parameters: `range_hz` (10.0), `frame_id` (`sonar_link`), `field_of_view_rad` (0.26), `range_min` (0.02 m), `range_max` (4.0 m) — Hiwonder Glowy spec 2–400 cm, 15°; the SDK caps raw readings at 5000 mm.
+Parameters: `range_hz` (10.0), `frame_id` (`sonar_link`), `field_of_view_rad` (0.26), `range_min` (0.02 m), `range_max` (4.0 m) — Hiwonder Glowy spec 2–400 cm, 15°. It reads `getDistanceRaw()` and publishes the module's no-echo codes (0xFF80–0xFFFF, about half of all reads in a paper sweep) as `+inf` (REP 117) instead of a distance.
 
 `on_configure` creates `Sonar()`, sets RGB mode 0 and dims the sonar nav lights to `nav_light_idle_brightness` (0.05); `on_cleanup`/`on_shutdown` restore them to full. `on_activate` starts 10 Hz range timer.
 

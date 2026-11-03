@@ -90,7 +90,13 @@ class Sonar:
         self.setBreathCycle(2, 2, 3400)
 
     def getDistance(self):
-        dist = 99999
+        dist = self.getDistanceRaw()
+        if dist > 5000:
+            dist = 5000
+        return dist
+
+    def getDistanceRaw(self):
+        # Uncapped register value (mm). 0xFF80-0xFFFF means no echo / no valid reading.
         with SMBus(self.i2c) as bus:
             msg = i2c_msg.write(
                 self.i2c_addr,
@@ -101,10 +107,7 @@ class Sonar:
             bus.i2c_rdwr(msg)
             read = i2c_msg.read(self.i2c_addr, 2)
             bus.i2c_rdwr(read)
-            dist = int.from_bytes(bytes(list(read)), byteorder="little", signed=False)
-            if dist > 5000:
-                dist = 5000
-        return dist
+            return int.from_bytes(bytes(list(read)), byteorder="little", signed=False)
 
 
 if __name__ == "__main__":
