@@ -1,14 +1,26 @@
+# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
 venv/
 .venv/
-dist/
-build/
+
+# setuptools (pip install -e . / bdist) at the repo root
+/build/
+/dist/
+
+# colcon workspace
 ros2/build/
 ros2/install/
 ros2/log/
+
+# packaging/build_deb.sh output
 packaging/staging/
 packaging/*.deb
+
+# Editors / tools (.vscode/settings.json is tracked on purpose)
 .idea/
-rpi_ws281x_proxy/
+**/.claude/settings.local.json
+
+# Nested checkout of github.com/a-dh/rpi_ws281x_proxy (dev host)
+/rpi_ws281x_proxy/
