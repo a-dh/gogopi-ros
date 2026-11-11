@@ -20,6 +20,7 @@ gopiros2/
 │   └── src/
 │       ├── gogopi_msgs/   ← Custom msg/srv (CMake)
 │       └── gogopi_bringup/← Lifecycle nodes + launch files (ament_python)
+├── TCFFHRC/               ← git submodule (github.com/a-dh/TCFFHRC): Trinity fire-fighting contest rules + ROS2/Gazebo arena models
 ├── tools/
 │   ├── pt_range_check.py  ← pan/tilt end stops, level, scales (camera-based; run on robot)
 │   └── pt_lidar_stress.py ← swing pan hard, measure lidar glitches / battery / camera fps

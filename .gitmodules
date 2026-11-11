@@ -1,0 +1,3 @@
+[submodule "TCFFHRC"]
+	path = TCFFHRC
+	url = https://github.com/a-dh/TCFFHRC.git
