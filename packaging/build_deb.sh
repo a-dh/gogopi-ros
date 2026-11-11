@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build gogopi-services_X.Y.Z_all.deb
+# Build gogopi-services_X.Y.Z_arm64.deb (developed for a Raspberry Pi 4)
 # Run from any directory; requires dpkg-deb and internet access (GitHub).
 # Must run ON THE ROBOT: the bundled venv is tied to the build host's
 # architecture and Python version (lib/python3.X), so an x86 build won't run on the Pi.
@@ -13,7 +13,11 @@ fi
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="$(grep '^version' "$REPO_ROOT/pyproject.toml" | grep -oP '[\d.]+')"
-PKG="gogopi-services_${VERSION}_all"
+ARCH="$(dpkg --print-architecture)"   # arm64 on the Pi
+# The bundled venv only runs on the Python minor version it was built with.
+PY_MINOR="$(python3 -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')"
+PY_NEXT="$(python3 -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1] + 1}")')"
+PKG="gogopi-services_${VERSION}_${ARCH}"
 STAGING="$REPO_ROOT/packaging/staging"
 OUT="$REPO_ROOT/packaging/${PKG}.deb"
 
@@ -47,7 +51,10 @@ python3 -m venv "$STAGING/opt/gogopi/venv"
     "rpi-led-proxy @ git+https://github.com/a-dh/rpi_ws281x_proxy.git@v2.0-gh"
 
 # DEBIAN control files
-sed "s/^Version: .*/Version: $VERSION/" "$REPO_ROOT/packaging/control" \
+sed -e "s/@VERSION@/$VERSION/" \
+    -e "s/@ARCH@/$ARCH/" \
+    -e "s/@PYTHON_DEP@/python3 (>= $PY_MINOR), python3 (<< $PY_NEXT)/" \
+    "$REPO_ROOT/packaging/control" \
     > "$STAGING/DEBIAN/control"
 cp "$REPO_ROOT/packaging/postinst" "$STAGING/DEBIAN/postinst"
 cp "$REPO_ROOT/packaging/prerm"    "$STAGING/DEBIAN/prerm"

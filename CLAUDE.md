@@ -14,8 +14,9 @@ gopiros2/
 ├── services/              ← Standalone systemd services (run independently of ROS2)
 │   ├── hw_button_scan.py  ← KEY1 long-press=WiFi reset, KEY2 long-press=shutdown
 │   ├── hw_wifi.py         ← WiFi AP/client manager with LED status blink
-│   ├── hw_find.py         ← UDP discovery beacon
-│   └── hw_sonar_lights.py ← oneshot at boot: sonar RGBs port red / starboard green
+│   ├── hw_sonar_lights.py ← oneshot at boot: sonar RGBs port red / starboard green
+│   ├── hw_check.py        ← hardware health check (not packaged; run by hand)
+│   └── tmux_status.py     ← tmux status-right: HW / camera / ROS / battery (not packaged)
 ├── ros2/                  ← Colcon workspace
 │   └── src/
 │       ├── gogopi_msgs/   ← Custom msg/srv (CMake)
@@ -35,10 +36,12 @@ gopiros2/
 python3 -m venv venv && . venv/bin/activate
 pip install -e .                       # install gogopi-sdk (HiwonderSDK)
 
-# Build and install systemd services as a Debian package
+# Build and install systemd services as a Debian package (developed for a Raspberry Pi 4)
 # (requires dpkg-deb; fetches rpi-led-proxy from github.com/a-dh/rpi_ws281x_proxy, tag v2.0-gh)
 # Run ON THE ROBOT: the .deb bundles a venv tied to the host arch + Python version;
-# build_deb.sh refuses to run on anything but aarch64.
+# build_deb.sh refuses to run on anything but aarch64. It fills packaging/control's
+# @VERSION@ (pyproject.toml), @ARCH@ (dpkg --print-architecture → arm64) and
+# @PYTHON_DEP@ (python3 pinned to the build's minor version) → gogopi-services_X.Y.Z_arm64.deb.
 ./packaging/build_deb.sh
 sudo dpkg -i packaging/gogopi-services_*.deb
 

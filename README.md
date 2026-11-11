@@ -113,12 +113,14 @@ For direct SDK use outside ROS2 you can use a venv instead (`python3 -m venv ven
 
 ### Systemd services
 
-Button scan, WiFi manager, discovery beacon and boot-time sonar lights, packaged as a `.deb` with a bundled venv under `/opt/gogopi/`:
+Button scan, WiFi manager and boot-time sonar lights, packaged as `gogopi-services` with a bundled venv under `/opt/gogopi/`. The package was developed for a Raspberry Pi 4 (Ubuntu 24.04, arm64). Its venv is tied to the build host, so the `.deb` is `arm64`, depends on the Python minor version it was built with (e.g. `python3 (>= 3.12), python3 (<< 3.13)`), and must be built on the robot:
 
 ```bash
-./packaging/build_deb.sh                       # run on the robot (aarch64 only)
+./packaging/build_deb.sh                       # run on the robot (aarch64 only) → packaging/gogopi-services_X.Y.Z_arm64.deb
 sudo dpkg -i packaging/gogopi-services_*.deb
 ```
+
+Rebuild the package after an Ubuntu upgrade that changes the Python minor version; dpkg will refuse the old one.
 
 To remove:
 
