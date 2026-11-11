@@ -22,6 +22,8 @@ STAGING="$REPO_ROOT/packaging/staging"
 OUT="$REPO_ROOT/packaging/${PKG}.deb"
 
 rm -rf "$STAGING"
+# Old builds (any version/arch) would also match the documented dpkg -i glob.
+rm -f "$REPO_ROOT"/packaging/gogopi-services_*.deb
 install -d \
     "$STAGING/opt/gogopi/services" \
     "$STAGING/lib/systemd/system" \
